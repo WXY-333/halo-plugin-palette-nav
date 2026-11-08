@@ -1,0 +1,117 @@
+plugins {
+    id 'java'
+    id "io.freefair.lombok" version "9.2.0"
+    id "run.halo.plugin.devtools" version "0.9.0"
+}
+
+group 'cn.litx'
+version = findProperty('version') ?: '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation platform('run.halo.tools.platform:plugin:2.27.0')
+    compileOnly 'run.halo.app:api'
+    compileOnly 'org.springframework:spring-webflux'
+
+    testImplementation 'run.halo.app:api'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+    jvmArgs '-Dfile.encoding=UTF-8'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
+
+tasks.named('processResources', ProcessResources) {
+    from('LICENSE')
+    exclude '**/*.bak'
+    exclude '**/*.orig'
+    exclude '**/*.rej'
+    exclude '**/*~'
+    exclude '**/.DS_Store'
+}
+
+tasks.named('generatePluginComponentsIdx') {
+    dependsOn tasks.named('processResources')
+    // Also injects spec.version into build/resources/main/plugin.yaml, so it must
+    // run even when processResources was considered up-to-date.
+    outputs.upToDateWhen { false }
+    notCompatibleWithConfigurationCache('This task invokes "Task.project" at execution time, which is not supported with configuration cache.')
+}
+
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    exclude 'module-info.class'
+}
+
+tasks.register('processUiResources', Sync) {
+    from project(':ui').layout.buildDirectory.dir('dist')
+    into layout.buildDirectory.dir('resources/main/ui')
+    dependsOn project(':ui').tasks.named('assemble')
+    shouldRunAfter tasks.named('processResources')
+}
+
+tasks.register('copyComponentsIdx', Copy) {
+    from layout.buildDirectory.dir('tmp/META-INF')
+    into layout.buildDirectory.dir('classes/java/main/META-INF')
+    dependsOn tasks.named('generatePluginComponentsIdx')
+}
+
+tasks.named('classes') {
+    dependsOn tasks.named('processUiResources')
+    dependsOn tasks.named('copyComponentsIdx')
+}
+
+tasks.named('check') {
+    dependsOn project(':ui').tasks.named('check')
+}
+
+halo {
+    version = '2.27'
+    // Fixed local development port for this plugin project. Override with
+    // -PhaloPort / -PhaloExternalUrl when generating OpenAPI docs against
+    // another Halo instance.
+    port = (findProperty('haloPort') ?: '8095') as Integer
+    externalUrl = findProperty('haloExternalUrl')
+}
+
+// OpenAPI grouping is shared by `generateOpenApiDocs` and `generateApiClient`.
+// CI can use the default Docker-based flow; locally reuse the running Halo with:
+//   ./gradlew generateApiClient -PhaloOpenApiUseExistingServer=true
+haloPlugin {
+    openApi {
+        useExistingServer = (findProperty('haloOpenApiUseExistingServer') ?: 'false').toBoolean()
+        groupingRules {
+            paletteNavApis {
+                displayName = 'Palette Nav API'
+                pathsToMatch = [
+                    '/apis/palette-nav.halo.run/v1alpha1/**',
+                    '/apis/console.api.palette-nav.halo.run/v1alpha1/**'
+                ]
+            }
+        }
+        groupedApiMappings = [
+            '/v3/api-docs/paletteNavApis': 'paletteNavApis.json'
+        ]
+        generator {
+            outputDir = file("${projectDir}/ui/src/api/generated")
+        }
+    }
+}

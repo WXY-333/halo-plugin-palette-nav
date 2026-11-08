@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="https://www.thymeleaf.org"
+      th:attr="data-theme=${defaultColor}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title th:text="${!#strings.isEmpty(siteName) ? siteName : site.title}">Palette Nav</title>
+    <meta name="keywords" th:content="${seoKeywords}">
+    <meta name="description"
+          th:content="${!#strings.isEmpty(seoDescription) ? seoDescription : site.subtitle}">
+    <link rel="shortcut icon" th:href="@{${logoUrl}}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="full-screen" content="yes">
+    <meta name="browsermode" content="application">
+    <meta name="x5-fullscreen" content="true">
+    <meta name="x5-page-mode" content="app">
+    <script th:inline="javascript">
+        (function () {
+            try {
+                var nightMode = /*[[${defaultNightMode}]]*/ 'auto';
+                var storedNight = localStorage.getItem('palette_nightMode');
+                var night = false;
+                if (storedNight === 'true') {
+                    night = true;
+                } else if (storedNight === 'false') {
+                    night = false;
+                } else {
+                    var prefersDark = false;
+                    try {
+                        prefersDark = !!(window.matchMedia
+                            && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    } catch (ignored) {
+                        prefersDark = false;
+                    }
+                    night = nightMode === 'dark' || (nightMode === 'auto' && prefersDark);
+                }
+                if (night) {
+                    document.documentElement.classList.add('night-mode');
+                }
+
+                var color = localStorage.getItem('palette_color');
+                if (color && /^[a-z][a-z0-9_-]*$/i.test(color)) {
+                    document.documentElement.setAttribute('data-theme', color);
+                }
+            } catch (ignored) {
+                // 隐私模式下 localStorage 不可用，使用默认外观
+            }
+        }());
+    </script>
+    <link rel="stylesheet"
+          th:href="@{/plugins/palette-nav/assets/nav/css/style.css(v=${pluginVersion})}">
+</head>
+<body th:attr="data-default-color=${defaultColor},
+              data-night-mode=${defaultNightMode},
+              data-background-url=@{${backgroundUrl}},
+              data-background-video-url=${backgroundVideoUrl},
+              data-baidu-suggest=${baiduSuggestions}">
+<!-- 只内联当前页面实际引用到的雪碧图符号，避免加载完整 iconfont 脚本。 -->
+<div th:if="${!#strings.isEmpty(iconSpriteHtml)}" th:utext="${iconSpriteHtml}"></div>
+<div class="bg-layer"></div>
+
+<div class="main-wrapper">
+    <header class="top-bar">
+        <div class="top-bar-left">
+            <a th:href="@{/}" class="brand-link" th:title="${!#strings.isEmpty(siteName) ? siteName : site.title}">
+                <img th:src="@{${logoUrl}}" class="brand-logo"
+                     th:alt="${!#strings.isEmpty(siteName) ? siteName : site.title}">
+                <span class="brand-text"
+                      th:text="${!#strings.isEmpty(brandText)
+                          ? brandText
+                          : (!#strings.isEmpty(siteName) ? siteName : site.title)}">Palette Nav</span>
+            </a>
+        </div>
+        <div class="top-bar-right">
+            <button type="button" class="icon-btn" id="bgBtn" title="切换背景" aria-label="切换背景">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                     stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                </svg>
+            </button>
+            <div class="palette-dropdown">
+                <button type="button" class="icon-btn" id="paletteBtn" title="切换主题色彩"
+                        aria-label="切换主题色彩" aria-haspopup="true" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                         stroke-width="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 2a10 10 0 0 1 0 20"/>
+                        <path d="M12 2a10 10 0 0 0 0 20"/>
+                        <line x1="2" y1="12" x2="22" y2="12"/>
+                    </svg>
+                </button>
+                <div class="palette-popover">
+                    <div class="color-options">
+                        <button type="button" class="color-opt active" data-color="purple"
+                                title="极光紫" aria-label="极光紫"></button>
+                        <button type="button" class="color-opt" data-color="blue"
+                                title="板岩蓝" aria-label="板岩蓝"></button>
+                        <button type="button" class="color-opt" data-color="green"
+                                title="森林绿" aria-label="森林绿"></button>
+                        <button type="button" class="color-opt" data-color="pink"
+                                title="玫瑰粉" aria-label="玫瑰粉"></button>
+                        <button type="button" class="color-opt" data-color="orange"
+                                title="日落橙" aria-label="日落橙"></button>
+                        <button type="button" class="color-opt" data-color="teal"
+                                title="海洋青" aria-label="海洋青"></button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="icon-btn" id="nightBtn" title="切换模式"
+                    aria-label="切换夜间模式" aria-pressed="false">
+                <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                     stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                </svg>
+                <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none"
+                     stroke="currentColor" stroke-width="2" style="display:none" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </button>
+            <div class="dropdown" th:if="${!#lists.isEmpty(quickLinks)}">
+                <button type="button" class="icon-btn" title="更多" aria-label="更多导航"
+                        aria-haspopup="true" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                        <circle cx="12" cy="5" r="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <circle cx="12" cy="19" r="2"/>
+                    </svg>
+                </button>
+                <div class="dropdown-menu">
+                    <a th:each="item : ${quickLinks}" th:href="@{${item.url}}"
+                       th:text="${item.displayName}" class="dropdown-link"
+                       th:attr="target=${item.openInNewTab} ? '_blank' : null,
+                                rel=${item.openInNewTab} ? 'noopener' : null"></a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="hero-section">
+        <div class="clock-area" th:if="${showClock}">
+            <div class="clock-time" id="clockTime">00:00:00</div>
+            <div class="clock-date" id="clockDate"></div>
+            <div class="clock-greeting" id="clockGreeting"></div>
+        </div>
+
+        <p class="yiyan-text" th:if="${showYiyan and !#strings.isEmpty(yanText)}"
+           th:text="${yanText}"></p>
+
+        <div class="search-area" th:if="${!#lists.isEmpty(searchEngines)}">
+            <form class="search-form" id="search-form" action="#">
+                <div class="search-wrapper">
+                    <div class="search-engine-switcher" id="engineSwitcher" title="选择搜索引擎"
+                         role="button" tabindex="0" aria-label="选择搜索引擎" aria-expanded="false"
+                         aria-controls="engineOptions">
+                        <span class="engine-icon" id="engineIcon"></span>
+                        <svg class="engine-arrow" viewBox="0 0 24 24" width="12" height="12"
+                             fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+                    <input class="search-input" type="text" id="search-input"
+                           placeholder="请输入搜索内容" autocomplete="off" x-webkit-speech lang="zh-CN">
+                    <button class="search-btn" id="searchBtn" type="submit" title="搜索">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+                             stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="engine-options" id="engineOptions" role="radiogroup"
+                     aria-label="选择搜索引擎">
+                    <label class="engine-option" th:each="engine, iter : ${searchEngines}"
+                           th:title="${engine.displayName}">
+                        <input type="radio" name="sou" th:value="${engine.searchUrl}"
+                               th:attr="data-alias=${engine.alias},data-hint=${engine.hint}"
+                               th:checked="${iter.index == 0}">
+                        <span class="engine-option-icon" th:utext="${engine.iconHtml}"></span>
+                        <span class="engine-option-name" th:text="${engine.displayName}"></span>
+                        <svg class="engine-option-check" viewBox="0 0 24 24" width="14" height="14"
+                             fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true">
+                            <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                    </label>
+                </div>
+                <ul class="search-suggestions" id="searchSuggestions"></ul>
+            </form>
+        </div>
+    </div>
+
+    <div class="nav-section">
+        <nav class="category-nav" th:if="${!#lists.isEmpty(categories)}">
+            <!-- 分类溢出时由 script.js 显示两侧箭头；触屏设备用原生滑动，箭头隐藏 -->
+            <button type="button" class="category-arrow category-arrow--prev"
+                    data-scroll-dir="prev" aria-label="向左滚动分类" title="向左滚动">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                     stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <div class="category-scroll">
+                <button type="button" class="category-item active" data-cat="0"
+                        aria-pressed="true">全部</button>
+                <button type="button" class="category-item" th:each="category : ${categories}"
+                        th:attr="data-cat=${category.name}"
+                        aria-pressed="false" th:text="${category.displayName}"></button>
+            </div>
+            <button type="button" class="category-arrow category-arrow--next"
+                    data-scroll-dir="next" aria-label="向右滚动分类" title="向右滚动">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                     stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                    <polyline points="9 6 15 12 9 18"/>
+                </svg>
+            </button>
+        </nav>
+
+        <div class="links-container" id="linksContainer" th:if="${!#lists.isEmpty(categories)}">
+            <div class="link-group" th:each="category : ${categories}"
+                 th:attr="data-group-id=${category.name}">
+                <div class="group-header">
+                    <span class="group-icon" th:utext="${category.iconHtml}"></span>
+                    <h3 class="group-title" th:text="${category.displayName}"></h3>
+                </div>
+                <div class="group-links">
+                    <div class="link-item-wrapper" th:each="link : ${category.links}">
+                        <a th:href="@{${link.url}}" th:title="${link.displayName}"
+                           target="_blank" rel="nofollow noopener" class="link-card">
+                            <span class="link-card-icon" th:utext="${link.iconHtml}"></span>
+                            <span class="link-card-name" th:text="${link.displayName}"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-empty" th:if="${#lists.isEmpty(categories)}">
+            <div class="nav-empty-card">
+                <div class="nav-empty-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none"
+                         stroke="currentColor" stroke-width="1.6">
+                        <rect x="3" y="3" width="7" height="7" rx="2"/>
+                        <rect x="14" y="3" width="7" height="7" rx="2"/>
+                        <rect x="3" y="14" width="7" height="7" rx="2"/>
+                        <rect x="14" y="14" width="7" height="7" rx="2"/>
+                    </svg>
+                </div>
+                <h2>还没有导航数据</h2>
+                <p>请到 Halo 控制台添加分类与链接。</p>
+                <a th:href="@{/console/palette-nav}" class="nav-empty-btn">前往控制台</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="site-footer"
+        th:if="${!#strings.isEmpty(gonganbei) or !#strings.isEmpty(icp) or !#strings.isEmpty(copyright)}">
+    <div class="footer-content">
+        <span class="footer-item" th:if="${!#strings.isEmpty(gonganbei)}">
+            <a th:if="${!#strings.isEmpty(gonganbeiCode)}" class="gonganbei"
+               th:href="|http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=${gonganbeiCode}|"
+               target="_blank" rel="nofollow noopener" th:text="${gonganbei}"></a>
+            <span th:unless="${!#strings.isEmpty(gonganbeiCode)}" class="gonganbei"
+                  th:text="${gonganbei}"></span>
+        </span>
+        <span class="footer-item" th:if="${!#strings.isEmpty(icp)}">
+            <a class="icp" href="https://beian.miit.gov.cn/" target="_blank"
+               rel="nofollow noopener" th:text="${icp}"></a>
+        </span>
+        <span class="footer-item" th:if="${!#strings.isEmpty(copyright)}"
+              th:utext="${copyright}"></span>
+    </div>
+</footer>
+
+<div th:if="${!#strings.isEmpty(customFooterCode)}" th:utext="${customFooterCode}"></div>
+
+<script th:src="@{/plugins/palette-nav/assets/nav/js/script.js(v=${pluginVersion})}" defer></script>
+</body>
+</html>

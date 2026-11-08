@@ -1,0 +1,55 @@
+plugins {
+    id 'base'
+    id "com.github.node-gradle.node" version "7.1.0"
+}
+
+group 'cn.litx.palettenav.ui'
+
+tasks.register('pnpmBuild', PnpmTask) {
+    group = 'build'
+    description = 'Build the Halo console UI with Vite'
+    args = ['build']
+    dependsOn tasks.named('pnpmInstall')
+    inputs.dir(layout.projectDirectory.dir('src'))
+    inputs.files(fileTree(
+        dir: layout.projectDirectory,
+        includes: ['*.cjs', '*.mjs', '*.ts', '*.js', '*.json', '*.yaml']))
+    outputs.dir(layout.buildDirectory.dir('dist'))
+}
+
+tasks.register('pnpmCheck', PnpmTask) {
+    group = 'verification'
+    description = 'Type-check the Halo console UI'
+    args = ['type-check']
+    dependsOn tasks.named('pnpmInstall')
+}
+
+tasks.register('verifyUiBundle') {
+    group = 'verification'
+    description = 'Fail when the Halo UI bundler did not produce an ESM bundle'
+    dependsOn tasks.named('pnpmBuild')
+    doLast {
+        def distDir = layout.buildDirectory.dir('dist').get().asFile
+        def manifest = new File(distDir, 'ui-plugin.json')
+        if (!manifest.exists()) {
+            throw new GradleException('ui-plugin.json is missing; Halo will not load the plugin UI')
+        }
+        def text = manifest.getText('UTF-8')
+        if (!text.contains('"esm"')) {
+            throw new GradleException("Expected ESM output, got: ${text}")
+        }
+        def json = new groovy.json.JsonSlurper().parseText(text)
+        def entry = json.entry ?: json.main
+        if (!entry || !new File(distDir, entry.toString().replaceFirst('^\\./', '')).exists()) {
+            throw new GradleException("UI entry file is missing: ${entry}")
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('pnpmCheck')
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('verifyUiBundle')
+}

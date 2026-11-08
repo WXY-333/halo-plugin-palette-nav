@@ -1,0 +1,36 @@
+{
+  "name": "palette-nav-ui",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "dev": "vite build --watch --mode=development",
+    "build": "vue-tsc --build && vite build",
+    "type-check": "vue-tsc --build"
+  },
+  "dependencies": {
+    "@halo-dev/api-client": "2.27.0",
+    "@halo-dev/components": "2.27.0",
+    "@halo-dev/ui-shared": "2.27.0",
+    "axios": "^1.16.0",
+    "echarts": "^6.1.0",
+    "vue": "^3.5.40",
+    "vue-router": "~5.1.0"
+  },
+  "devDependencies": {
+    "@halo-dev/ui-plugin-bundler-kit": "2.27.0",
+    "@iconify-json/ri": "^1.2.10",
+    "@tsconfig/node24": "^24.0.4",
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "typescript": "~6.0.0",
+    "unplugin-icons": "^23.0.1",
+    "vite": "^8.2.0",
+    "vue-tsc": "^3.3.7"
+  }
+}

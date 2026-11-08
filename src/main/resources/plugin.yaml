@@ -1,0 +1,23 @@
+# Refer https://docs.halo.run/developer-guide/plugin/basics/manifest
+apiVersion: plugin.halo.run/v1alpha1
+kind: Plugin
+metadata:
+  name: palette-nav
+spec:
+  requires: ">=2.27.0"
+  author:
+    name: Litx
+    website: https://litx.cn
+  # 设置页签的业务配置保存在独立的 palette-nav-config ConfigMap 中。
+  # 刻意不声明 configMapName / settingName：Halo 的「卸载并删除配置」只会删除
+  # spec.configMapName / spec.settingName 指向的资源，而导航设置属于业务数据，
+  # 卸载或重装插件后必须保留。
+  homepage: https://github.com/litxiaoxi/halo-plugin-palette-nav#readme
+  repo: https://github.com/litxiaoxi/halo-plugin-palette-nav
+  issues: https://github.com/litxiaoxi/halo-plugin-palette-nav/issues
+  displayName: "Palette Nav 上网导航"
+  logo: "logo.png"
+  description: "独立的 Palette 风格上网导航页（/nav）与控制台管理页，支持分类、链接、搜索引擎、快捷导航、6 色主题与夜间模式。"
+  license:
+    - name: "MIT"
+      url: "https://github.com/litxiaoxi/halo-plugin-palette-nav/blob/main/LICENSE"

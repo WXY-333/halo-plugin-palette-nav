@@ -1,0 +1,26 @@
+server:
+  port: 8095
+spring:
+  r2dbc:
+    url: r2dbc:h2:file:///D:/path/to/halo-plugin-palette-nav/.tools/halo-data/db/halo-next?MODE=MySQL&DB_CLOSE_ON_EXIT=FALSE
+    username: admin
+    password: 123456
+  sql:
+    init:
+      mode: always
+      platform: h2
+halo:
+  work-dir: D:/path/to/halo-plugin-palette-nav/.tools/halo-data
+  external-url: http://localhost:8095
+  security:
+    basic-auth:
+      # Development only: scripts/dev.sh uses it to enable the plugin after boot.
+      disabled: false
+  plugin:
+    runtime-mode: development
+    fixed-plugin-path:
+      - D:/path/to/halo-plugin-palette-nav
+    classes-directories:
+      - build/classes/java/main
+      - build/resources/main
+    auto-start-plugin: true

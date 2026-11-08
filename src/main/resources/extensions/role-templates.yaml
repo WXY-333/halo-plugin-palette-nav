@@ -1,0 +1,60 @@
+apiVersion: v1alpha1
+kind: Role
+metadata:
+  name: palette-nav-role-manage
+  labels:
+    halo.run/role-template: "true"
+  annotations:
+    rbac.authorization.halo.run/module: "Palette Nav"
+    rbac.authorization.halo.run/display-name: "Palette Nav 上网导航管理"
+    rbac.authorization.halo.run/ui-permissions: |
+      ["plugin:palette-nav:manage"]
+rules:
+  - apiGroups: ["palette-nav.halo.run"]
+    resources: ["navcategories", "navlinks", "navsearchengines", "navquicklinks"]
+    verbs: ["get", "list", "create", "update", "delete", "patch"]
+  # POST /reorder 对应 create 动词。
+  - apiGroups: ["console.api.palette-nav.halo.run"]
+    resources: ["reorder"]
+    verbs: ["create"]
+  # 新增/编辑链接时的“获取”按钮：POST /link-meta 无资源名，动词会被判定为 create。
+  - apiGroups: ["console.api.palette-nav.halo.run"]
+    resources: ["link-meta"]
+    verbs: ["create"]
+  - apiGroups: ["console.api.palette-nav.halo.run"]
+    resources: ["category"]
+    verbs: ["delete"]
+  # 仪表盘读取访问统计（GET /stats 无资源名，动词会被判定为 get/list）。
+  - apiGroups: ["console.api.palette-nav.halo.run"]
+    resources: ["stats"]
+    verbs: ["get", "list"]
+  # 图标选择器需要读取附件库并上传图片/SVG。
+  - apiGroups: ["api.console.halo.run"]
+    resources: ["attachments"]
+    verbs: ["get", "list"]
+  # Halo 2.27 的 POST /attachments/upload 会被判定为 non-resource 请求
+  # （RequestInfoFactory 对 create + 资源名 upload 置 isResourceRequest=false），
+  # 只声明 apiGroups 规则会返回 403；官方 role-template-attachment.yaml 同样声明了
+  # 下面这条 nonResourceURLs 规则。
+  - nonResourceURLs: ["/apis/api.console.halo.run/v1alpha1/attachments/upload"]
+    verbs: ["create"]
+  - apiGroups: ["console.api.storage.halo.run"]
+    resources: ["attachments/upload"]
+    verbs: ["create"]
+  - apiGroups: ["storage.halo.run"]
+    resources: ["attachments", "policies", "policytemplates", "groups"]
+    verbs: ["get", "list"]
+  # 设置页签直接读写业务配置 ConfigMap（配置未声明为 spec.configMapName，
+  # 因此卸载时勾选“删除配置”也不会删到它）。
+  # resourceNames 限定只能读改 palette-nav-config，避免顺带获得其他配置的权限。
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["palette-nav-config"]
+    verbs: ["get", "update"]
+  # create 无法用 resourceNames 限定：Kubernetes RBAC 的 create 请求没有资源名，
+  # Halo 的 RbacRequestEvaluation 也按 URL 中的名称匹配，因此单独声明。
+  # 用于 ConfigMap 被手动删除后，设置页保存时自行重建（与 Halo 官方
+  # role-template-configmap.yaml 的 manage 规则一致）。
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["create"]

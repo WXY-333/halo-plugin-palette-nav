@@ -1,0 +1,1077 @@
+/*
+ * Console styles for Palette Nav.
+ *
+ * Layout and typography deliberately mirror Halo 2.27's own console:
+ * - colors come from the host tokens injected by @halo-dev/components
+ * - radius comes from --borderRadius-base
+ * - list rows, cards, empty states and alerts are provided by the component
+ *   library, so this file only covers layout and the custom icon picker.
+ */
+
+:root {
+  --pn-primary: rgb(var(--colors-primary, 76 203 160));
+  --pn-primary-soft: rgb(var(--colors-primary, 76 203 160) / 10%);
+  --pn-primary-tint: rgb(var(--colors-primary, 76 203 160) / 6%);
+  --pn-primary-border: rgb(var(--colors-primary, 76 203 160) / 16%);
+  --pn-danger: rgb(var(--colors-danger, 215 29 29));
+  --pn-radius: var(--borderRadius-base, 4px);
+  --pn-border: #eaecf0;
+  --pn-border-strong: #d9d9d9;
+  --pn-bg: #fff;
+  --pn-bg-soft: #f9fafb;
+  --pn-text: #111827;
+  --pn-text-soft: #6b7280;
+  --pn-text-muted: #9ca3af;
+}
+
+/* ============ 页面骨架 ============ */
+
+.pn-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+  .pn-page {
+    margin: 16px;
+    padding-bottom: 0;
+  }
+}
+
+/* Halo's `.main-content` has no horizontal padding below 768px. On phones the
+   outline tab bar runs edge to edge (no side whitespace), while the panel
+   below it keeps the 16px gutter that matches the host `.page-header`. */
+@media (max-width: 767px) {
+  .pn-page {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .pn-page .tabs-items-wrapper {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+}
+
+/* ============ 卡片工具栏 ============ */
+
+.pn-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--pn-bg);
+  border-bottom: 1px solid var(--pn-border);
+}
+
+.pn-toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+/* Keeps the primary actions pinned right even when the toolbar wraps onto a
+   second line (narrow viewports), instead of dropping them to the left edge. */
+.pn-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Refresh control for the list toolbars, matching Halo's own list pages: a
+   borderless 24px icon button that greys up on hover, with a tooltip. */
+.pn-refresh {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--pn-radius);
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pn-refresh:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.pn-refresh:focus-visible {
+  outline: 2px solid var(--pn-primary);
+  outline-offset: 2px;
+}
+
+.pn-refresh-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.pn-toolbar-hint {
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--pn-text-soft);
+}
+
+.pn-toolbar-search {
+  width: 240px;
+  max-width: 100%;
+}
+
+.pn-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--pn-text-soft);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pn-select-all input {
+  cursor: pointer;
+}
+
+.pn-page-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.pn-alert-wrap {
+  padding: 12px 16px 0;
+}
+
+.pn-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.pn-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ============ 实体列表微调 ============ */
+
+/* The entity table uses auto layout with nowrap cells, so the text column has
+   to be capped against the usable content width (viewport minus the 256px
+   console sidebar) to keep the action column inside the card.
+
+   Every selector that touches a Halo host class (VEntity / VEntityField) is
+   scoped to `.pn-page`: plugin CSS is injected globally, and unscoped rules
+   would resize the text column on articles, pages, users and attachments too. */
+.pn-page .entity-field-wrapper {
+  max-width: min(420px, calc(100vw - 527px)) !important;
+}
+
+/* ============ 拖动排序 ============ */
+
+/* Handle sits in the row padding, on the same pattern as the console menu
+   editor: a full-height grey strip that appears when the row is hovered. */
+/* The floating ghost is appended to <body>, outside `.pn-page`, and carries the
+   same handle cell; without a positioned ancestor that handle would anchor to the
+   page on touch devices, where it stays visible. */
+.pn-drag-ghost td:first-child,
+.pn-page .entity-wrapper > td:first-child {
+  position: relative;
+}
+
+.pn-drag-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: none;
+  width: 14px;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: move;
+  touch-action: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pn-page .entity-wrapper:hover .pn-drag-handle {
+  display: flex;
+}
+
+.pn-drag-handle:hover {
+  background: #e5e7eb;
+  color: var(--pn-text);
+}
+
+.pn-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Floating copy of the dragged row that follows the pointer, matching the
+   native drag image the console's menu editor gets from the browser. */
+.pn-drag-ghost {
+  position: fixed;
+  z-index: 60;
+  margin: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: var(--pn-bg);
+  border-radius: var(--pn-radius);
+  box-shadow: 0 0 0 1px var(--pn-border), 0 12px 24px -8px rgb(16 24 40 / 22%),
+    0 4px 10px -6px rgb(16 24 40 / 14%);
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.pn-drag-ghost td {
+  background: var(--pn-bg);
+}
+
+/* No text selection can start mid-drag, and the cursor stays consistent even
+   when the pointer leaves the handle's narrow strip. */
+body.pn-dragging,
+body.pn-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.pn-drag-handle-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* No hover on touch devices, and the console hides row checkboxes there too,
+   so the handle stays visible to keep sorting reachable. */
+@media (hover: none), (max-width: 767px) {
+  .pn-drag-handle {
+    display: flex;
+  }
+}
+
+.pn-drag-handle.pn-drag-disabled {
+  display: none;
+}
+
+/* The dragged row leaves the flow; the placeholder keeps the list height. */
+.entity-wrapper.pn-drag-source {
+  display: none;
+}
+
+.pn-drop-slot > td {
+  padding: 0;
+}
+
+.pn-drop-placeholder {
+  box-sizing: border-box;
+  background: #ddf2f9;
+  border: 1px dashed #00d9ff;
+}
+
+/* Dropping across a category boundary would break the group ordering. */
+.entity-wrapper.pn-drop-blocked {
+  cursor: no-drop;
+}
+
+.entity-wrapper.pn-drop-blocked > td {
+  background: rgb(var(--colors-danger, 215 29 29) / 6%);
+}
+
+@media (max-width: 1023px) {
+  .entity-wrapper .entity-end .pn-entity-tag {
+    display: none;
+  }
+}
+
+/* VEntityField renders a `#description` slot verbatim, so the slot content keeps
+   the table's 16px/24px instead of the built-in 12px/16px description. Matching
+   it here keeps the URL on the same baseline and row height as the other tabs. */
+.pn-entity-link {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--pn-text-soft);
+  text-decoration: none;
+}
+
+.pn-entity-link:hover {
+  color: var(--pn-text);
+  text-decoration: underline;
+}
+
+/* The row icon and title open the same edit dialog as the dropdown action.
+   They stay plain text/icon until hovered so the list does not read as a wall
+   of links; the dropdown remains the explicit, keyboard-reachable action. */
+.pn-edit-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--pn-radius);
+  background: none;
+  cursor: pointer;
+}
+
+.pn-edit-icon:hover .pn-icon-tile {
+  background: #f3f4f6;
+}
+
+.pn-edit-icon:focus-visible {
+  outline: 2px solid var(--pn-primary);
+  outline-offset: 2px;
+}
+
+.pn-edit-target .entity-field-title {
+  cursor: pointer;
+}
+
+.pn-edit-target .entity-field-title:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* ============ 图标块 ============ */
+
+.pn-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg-soft);
+  color: var(--pn-text-soft);
+  overflow: hidden;
+}
+
+.pn-icon-tile svg,
+.pn-icon-tile img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.pn-icon-tile .icon-text {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ============ 表单（模态框内的自定义控件） ============ */
+
+.pn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pn-label,
+.pn-form-label {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--pn-text);
+}
+
+.pn-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 90px;
+  border: 1px solid var(--pn-border-strong);
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg);
+  color: var(--pn-text);
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pn-textarea:focus {
+  border-color: var(--pn-primary);
+  box-shadow: 0 0 0 3px var(--pn-primary-soft);
+}
+
+.pn-hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--pn-text-muted);
+}
+
+.pn-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pn-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pn-form-block {
+  margin-top: 16px;
+}
+
+.pn-file-block {
+  margin-bottom: 16px;
+}
+
+.pn-form-block > .pn-form-label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* 「获取」按钮放在 FormKit 的 #suffix 槽里，也就是网址输入框内部右侧。
+   输入框内层是 h-9 的 flex 容器，因此按钮用 h-full + 左侧分隔线即可贴合。 */
+.pn-fetch-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-left: 1px solid var(--pn-border-strong);
+  background: var(--pn-bg);
+  color: var(--pn-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pn-fetch-button:hover:not(:disabled) {
+  background: var(--pn-primary-soft);
+}
+
+.pn-fetch-button:disabled {
+  color: var(--pn-text-muted);
+  cursor: not-allowed;
+}
+
+/* ============ 媒体选择器（LOGO / 背景） ============ */
+
+.pn-media-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pn-media-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pn-media-thumb {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.pn-media-field--logo .pn-media-thumb {
+  width: 72px;
+  height: 72px;
+}
+
+.pn-media-field--background .pn-media-thumb {
+  width: 168px;
+  height: 94px;
+}
+
+.pn-media-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg-soft);
+  color: var(--pn-text-muted);
+}
+
+.pn-media-thumb.empty .pn-media-frame {
+  border-style: dashed;
+  background: transparent;
+}
+
+.pn-media-default-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  z-index: 1;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgb(17 24 39 / 62%);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  pointer-events: none;
+}
+
+.pn-media-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pn-media-field--logo .pn-media-frame img {
+  box-sizing: border-box;
+  padding: 8px;
+  object-fit: contain;
+}
+
+.pn-media-placeholder {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.pn-media-video {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--pn-text-soft);
+}
+
+.pn-media-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.pn-media-kind {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--pn-text);
+}
+
+.pn-media-value {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--pn-text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pn-media-hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--pn-text-muted);
+}
+
+/* ============ 图标选择器 ============ */
+
+.pn-icon-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pn-icon-thumb {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.pn-icon-thumb.empty .pn-icon-tile {
+  border: 1px dashed var(--pn-border-strong);
+  background: transparent;
+}
+
+.pn-icon-trigger {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--pn-border-strong);
+  border-radius: 999px;
+  background: var(--pn-bg);
+  color: var(--pn-text-soft);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.pn-icon-trigger:hover {
+  border-color: var(--pn-primary);
+  color: var(--pn-primary);
+}
+
+.pn-icon-uploading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--pn-radius);
+  background: rgba(17, 24, 39, 0.55);
+  color: #fff;
+  font-size: 12px;
+}
+
+.pn-icon-field-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pn-icon-field-type {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  color: var(--pn-text);
+}
+
+.pn-icon-field-value {
+  max-width: 380px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--pn-text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pn-icon-field-hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--pn-text-muted);
+}
+
+.pn-icon-file {
+  display: none;
+}
+
+.pn-link-popover {
+  width: 384px;
+  max-width: calc(100vw - 40px);
+}
+
+.pn-link-actions {
+  margin-top: 16px;
+}
+
+.pn-icon-svg {
+  min-height: 140px;
+  font-size: 12px;
+}
+
+/* ============ 设置页签 ============ */
+
+.pn-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.pn-settings-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pn-settings-description {
+  margin: -4px 0 16px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--pn-text-soft);
+}
+
+.pn-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+/* FormKit spaces every field with py-4; inside the two-column grid that stacks
+   into 40px+ between rows, so the grid gap owns the vertical rhythm instead. */
+.pn-settings-grid .formkit-outer {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* FormKit caps inputs at 512px (max-w-lg); the grid columns should fill the card. */
+.pn-settings .formkit-inner {
+  max-width: none;
+}
+
+.pn-settings-wide {
+  grid-column: 1 / -1;
+}
+
+/* Saves stay reachable while scrolling a long settings list, matching Halo's
+   own setting pages. */
+.pn-settings-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--pn-bg) 95%, transparent);
+  border-top: 1px solid var(--pn-border);
+  backdrop-filter: blur(6px);
+}
+
+.pn-settings-footer-hint {
+  margin-right: auto;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--pn-text-muted);
+}
+
+/* Below 768px Halo's console renders a fixed bottom tab bar (`.mobile-nav`,
+   see MobileMenu CSS / BasicLayout CSS in halo.jar): 2px top border + 4px
+   button padding + 40px icon row = 50px, plus the device safe area. A sticky
+   bar at bottom: 0 paints over it because its z-index 5 outranks the bar's
+   auto stacking context, so lift the bar above the nav. */
+@media (max-width: 767px) {
+  .pn-settings-footer {
+    bottom: calc(50px + env(safe-area-inset-bottom));
+    padding: 10px 16px;
+  }
+
+  /* On narrow screens the hint would push the buttons onto a second row and
+     make the sticky bar tall enough to cover form fields. */
+  .pn-settings-footer-hint {
+    display: none;
+  }
+
+  .pn-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pn-media-field--background .pn-media-thumb {
+    width: 132px;
+    height: 76px;
+  }
+}
+
+/* ============ 响应式 ============ */
+
+/* Below 1024px the sidebar takes 256px on tablets, so six tabs no longer fit
+   the host's default 24px side padding. Tighten the items and shrink the two
+   gradient indicators (host: 5rem) so they cover less of a phone-width bar;
+   the 40px arrow inside still fills the indicator as a touch target. */
+@media (max-width: 1023px) {
+  .pn-page .tabbar-wrapper.tabbar-outline .tabbar-item {
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+  }
+
+  .pn-page .tabbar-wrapper .indicator {
+    width: 2.5rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .pn-toolbar-search {
+    width: 100%;
+  }
+
+  /* Keep every row inside the viewport: the entity table uses auto layout and
+     nowrap cells, so the text column must be capped explicitly. */
+  .pn-page .entity-start,
+  .pn-page .entity-field-wrapper {
+    min-width: 0;
+  }
+
+  .pn-page .entity-field-wrapper {
+    max-width: calc(100vw - 259px) !important;
+  }
+
+  .pn-page .entity-field-wrapper .entity-field-title-body,
+  .pn-page .entity-field-wrapper .entity-field-description-body {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pn-page .entity-field-wrapper .entity-field-title,
+  .pn-page .entity-field-wrapper .entity-field-description {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .pn-page .entity-wrapper .entity-end {
+    gap: 8px !important;
+  }
+
+  .entity-wrapper .entity-end .pn-entity-tag {
+    display: none;
+  }
+}
+
+/* Halo hides entity checkboxes below 640px, so the row loses that column
+   again and can hand the reclaimed width back to the text column. */
+@media (max-width: 639px) {
+  .pn-page .entity-field-wrapper {
+    max-width: calc(100vw - 227px) !important;
+  }
+
+  /* Halo hides the per-row checkboxes here, so select-all would act invisibly. */
+  .pn-select-all {
+    display: none;
+  }
+}
+
+/* ============ Dashboard ============ */
+
+.pn-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pn-dashboard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.pn-dashboard-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--pn-text-muted);
+}
+
+.pn-dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Soft tinted cards built from Halo's primary token, so the dashboard follows the
+   console's theme instead of introducing a second palette. */
+.pn-stat-card {
+  --pn-stat-accent: var(--pn-primary);
+  --pn-stat-accent-soft: var(--pn-primary-soft);
+  --pn-stat-tint: var(--pn-primary-tint);
+  --pn-stat-border: var(--pn-primary-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 104px;
+  padding: 18px 20px;
+  border: 1px solid var(--pn-stat-border);
+  border-radius: var(--pn-radius);
+  background-color: var(--pn-bg);
+  background-image: linear-gradient(
+    135deg,
+    var(--pn-stat-tint),
+    transparent 78%
+  );
+  color: var(--pn-text);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Only lift when a real pointer is present; on touch the hover state would
+   stick after a tap until the next one. */
+@media (hover: hover) and (pointer: fine) {
+  .pn-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pn-stat-card {
+    transition: none;
+  }
+
+  .pn-stat-card:hover {
+    transform: none;
+  }
+}
+
+.pn-stat-card-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--pn-stat-accent-soft);
+  color: var(--pn-stat-accent);
+  font-size: 22px;
+}
+
+.pn-stat-card-meta {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  min-width: 0;
+  text-align: right;
+}
+
+.pn-stat-card-label {
+  font-size: 14px;
+  color: var(--pn-text-soft);
+}
+
+.pn-stat-card-value {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pn-dashboard-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pn-dashboard-chart {
+  width: 100%;
+  height: 300px;
+}
+
+@media (max-width: 1100px) {
+  .pn-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pn-dashboard-charts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .pn-dashboard {
+    gap: 12px;
+  }
+
+  .pn-dashboard-charts {
+    gap: 12px;
+  }
+
+  .pn-dashboard-chart {
+    height: 240px;
+  }
+
+  /* 24px is a mouse target; give touch a 36px hit area without touching the
+     toolbar refresh buttons on the other tabs. */
+  .pn-dashboard .pn-refresh {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+  }
+
+  .pn-dashboard .pn-refresh-icon {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 767px) {
+  .pn-dashboard-chart {
+    height: 260px;
+  }
+}
+
+/* A 2x2 grid of vertical cards keeps the four counters to ~233px tall on a
+   phone (the old single column was ~444px) and still fits a nine-digit value
+   at 320px, which the horizontal layout could not. */
+@media (max-width: 639px) {
+  .pn-dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .pn-stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .pn-stat-card-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+
+  .pn-stat-card-meta {
+    align-items: flex-start;
+    width: 100%;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .pn-stat-card-label {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .pn-stat-card-value {
+    font-size: 22px;
+  }
+}
