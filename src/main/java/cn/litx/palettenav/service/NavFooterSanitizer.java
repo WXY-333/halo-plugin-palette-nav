@@ -39,12 +39,33 @@ public class NavFooterSanitizer {
         .addProtocols("a", "href", "http", "https", "mailto")
         .preserveRelativeLinks(true);
 
+    /**
+     * The sanitizer runs on the {@code /nav} render path (Netty event loop), while
+     * the copyright value changes only when a manager saves the settings. A single
+     * memoized result keeps the CPU-bound jsoup parse off that path; the settings
+     * value is the only input, so a one-entry cache is sufficient.
+     */
+    private volatile Cached cached;
+
     public String sanitize(String html) {
         if (!StringUtils.hasText(html)) {
             return "";
         }
+        var current = cached;
+        if (current != null && html.equals(current.input())) {
+            return current.output();
+        }
+        var cleaned = clean(html);
+        cached = new Cached(html, cleaned);
+        return cleaned;
+    }
+
+    private static String clean(String html) {
         var document = Jsoup.parseBodyFragment(html);
         document.select(REMOVED_ELEMENTS).remove();
         return Jsoup.clean(document.body().html(), SAFELIST);
+    }
+
+    private record Cached(String input, String output) {
     }
 }

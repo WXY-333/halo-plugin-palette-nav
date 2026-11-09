@@ -43,6 +43,8 @@ public class NavIconSpriteService {
      */
     private static final Pattern LEGACY_ID = Pattern.compile(
         "^(?:lyicon|icon)-[A-Za-z0-9_-]+$");
+    private static final Pattern SYMBOL_ID_ATTRIBUTE = Pattern.compile(
+        "id=\"[A-Za-z0-9_-]+\"");
     private static final String GENERIC_LINK_ID = "pn-link";
     /**
      * Legacy ids used by the seeded categories (and by some saved data). They are
@@ -87,7 +89,14 @@ public class NavIconSpriteService {
             var markup = available.get(id);
             if (markup == null && LEGACY_ID.matcher(id).matches()) {
                 var target = LEGACY_CATEGORY_IDS.getOrDefault(id, GENERIC_LINK_ID);
-                markup = legacySymbol(id, available.get(target));
+                var glyph = available.get(target);
+                if (glyph == null) {
+                    // A future sprite may rename or drop the mapped category logo.
+                    // Degrade to the generic glyph like any other legacy id instead
+                    // of emitting nothing.
+                    glyph = available.get(GENERIC_LINK_ID);
+                }
+                markup = legacySymbol(id, glyph);
             }
             if (markup != null) {
                 builder.append(markup);
@@ -104,11 +113,11 @@ public class NavIconSpriteService {
      * Emits the mapped glyph under an old iconfont id, so data saved before the icon
      * set was replaced keeps rendering instead of disappearing.
      */
-    private static String legacySymbol(String id, String generic) {
-        if (generic == null) {
+    private static String legacySymbol(String id, String glyph) {
+        if (glyph == null) {
             return null;
         }
-        return generic.replaceFirst("id=\"[A-Za-z0-9_-]+\"", "id=\"" + id + "\"");
+        return SYMBOL_ID_ATTRIBUTE.matcher(glyph).replaceFirst("id=\"" + id + "\"");
     }
 
     private Map<String, String> symbols() {
@@ -146,6 +155,14 @@ public class NavIconSpriteService {
             } catch (IOException error) {
                 log.warn("Failed to read Palette Nav icon sprite {}", resourcePath,
                     error);
+            }
+        }
+        // Materialize the seeded category aliases once, so the per-request render
+        // path never has to rename their markup.
+        for (var entry : LEGACY_CATEGORY_IDS.entrySet()) {
+            var glyph = result.getOrDefault(entry.getValue(), result.get(GENERIC_LINK_ID));
+            if (glyph != null) {
+                result.putIfAbsent(entry.getKey(), legacySymbol(entry.getKey(), glyph));
             }
         }
         return Map.copyOf(result);

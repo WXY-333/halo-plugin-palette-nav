@@ -153,6 +153,9 @@
         }
         storageSet(BG_KEY, 'image');
         bgLayer.classList.add('image-bg');
+        // 模板 <head> 里已有 html[data-background="image"] 的样式规则，
+        // 这里同步属性，保证切换开关时首屏规则与运行时状态一致。
+        document.documentElement.setAttribute('data-background', 'image');
         bgLayer.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
         removeVideoBackground();
         return true;
@@ -164,6 +167,7 @@
             return false;
         }
         storageSet(BG_KEY, 'video');
+        document.documentElement.removeAttribute('data-background');
         if (bgLayer) {
             bgLayer.classList.remove('image-bg');
             bgLayer.style.backgroundImage = 'none';
@@ -188,6 +192,7 @@
 
     function clearBackground() {
         storageSet(BG_KEY, 'none');
+        document.documentElement.removeAttribute('data-background');
         if (bgLayer) {
             bgLayer.classList.remove('image-bg');
             bgLayer.style.backgroundImage = 'none';

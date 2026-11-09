@@ -594,7 +594,7 @@ public class NavLinkMetaService {
         var lower = host.toLowerCase(Locale.ROOT);
         if (lower.equals("localhost") || lower.endsWith(".localhost")
             || lower.endsWith(".local")) {
-            throw new IllegalArgumentException("不允许访问本机或保留地址");
+            throw new IllegalArgumentException("不允许访问本机、内网或保留地址");
         }
         InetAddress[] resolved;
         try {
@@ -610,7 +610,7 @@ public class NavLinkMetaService {
         var allowed = new ArrayList<InetAddress>(resolved.length);
         for (var address : resolved) {
             if (isBlockedAddress(address)) {
-                throw new IllegalArgumentException("不允许访问本机或保留地址");
+                throw new IllegalArgumentException("不允许访问本机、内网或保留地址");
             }
             allowed.add(address);
         }

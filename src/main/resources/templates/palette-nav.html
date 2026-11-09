@@ -45,6 +45,19 @@
                 if (color && /^[a-z][a-z0-9_-]*$/i.test(color)) {
                     document.documentElement.setAttribute('data-theme', color);
                 }
+
+                // 背景偏好也要在首屏绘制前命中：script.js 在 DOMContentLoaded 才设置背景，
+                // 若等到那时再加载图片，用户会先看到无背景的主题渐变再淡入背景图。
+                var bgUrl = /*[[@{${backgroundUrl}}]]*/ '';
+                var bgVideoUrl = /*[[${backgroundVideoUrl}]]*/ '';
+                if (bgUrl) {
+                    document.documentElement.style.setProperty('--pn-bg-image',
+                        'url("' + bgUrl.replace(/"/g, '%22') + '")');
+                }
+                var bgSetting = localStorage.getItem('palette_bgSetting');
+                if (bgSetting === 'image' && bgUrl && !bgVideoUrl) {
+                    document.documentElement.setAttribute('data-background', 'image');
+                }
             } catch (ignored) {
                 // 隐私模式下 localStorage 不可用，使用默认外观
             }
@@ -52,6 +65,15 @@
     </script>
     <link rel="stylesheet"
           th:href="@{/plugins/palette-nav/assets/nav/css/style.css(v=${pluginVersion})}">
+    <!-- 与上面的 data-background / --pn-bg-image 配合，让背景图参与首屏绘制。 -->
+    <style>
+        html[data-background="image"] .bg-layer {
+            background-image: var(--pn-bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+    </style>
 </head>
 <body th:attr="data-default-color=${defaultColor},
               data-night-mode=${defaultNightMode},

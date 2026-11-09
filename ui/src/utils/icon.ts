@@ -5,15 +5,20 @@ const SPRITE_SVG =
 const UNSAFE = /<script\b|<\/script\s*>|on[a-z]+\s*=|javascript:/i;
 /** Ids from the iconfont sprite that older releases bundled. */
 const LEGACY_SPRITE_ID = /^(?:lyicon|icon)-[A-Za-z0-9_-]+$/;
-/** Legacy seeded category ids upgraded to the matching coloured category logo. */
-const LEGACY_SPRITE_MAP: Record<string, string> = {
-  "icon-remen": "pn-cat-common",
-  "icon-sheji": "pn-cat-design",
-  "icon-msg": "pn-cat-cloud",
-  "icon-ai-tool": "pn-cat-tools",
-  "icon-kongzhitai": "pn-cat-dev",
-  "icon-game00": "pn-cat-games",
-};
+/**
+ * Legacy seeded category ids upgraded to the matching coloured category logo.
+ * A `Map` (not a plain object) is required: `id` is user data, and an object
+ * lookup would return inherited prototype members for `#constructor` or
+ * `#__proto__` instead of a string.
+ */
+const LEGACY_SPRITE_MAP = new Map<string, string>([
+  ["icon-remen", "pn-cat-common"],
+  ["icon-sheji", "pn-cat-design"],
+  ["icon-msg", "pn-cat-cloud"],
+  ["icon-ai-tool", "pn-cat-tools"],
+  ["icon-kongzhitai", "pn-cat-dev"],
+  ["icon-game00", "pn-cat-games"],
+]);
 
 let spritePromise: Promise<void> | null = null;
 
@@ -149,7 +154,7 @@ export function isUnsafeIconMarkup(icon?: string | null): boolean {
  * Mirrors `NavIconSpriteService`'s legacy fallback on the server.
  */
 export function resolveSpriteId(id: string): string {
-  return LEGACY_SPRITE_MAP[id] ?? (LEGACY_SPRITE_ID.test(id) ? "pn-link" : id);
+  return LEGACY_SPRITE_MAP.get(id) ?? (LEGACY_SPRITE_ID.test(id) ? "pn-link" : id);
 }
 
 function svgDataUrl(value: string): string {

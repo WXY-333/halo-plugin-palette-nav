@@ -33,6 +33,13 @@ const loading = ref(true);
 const loadError = ref("");
 const saving = ref(false);
 const dirty = ref(false);
+/**
+ * A missing ConfigMap is recreated by the plugin on its next start. The manage
+ * role cannot create ConfigMaps, so until then the page must not pretend the
+ * defaults are savable: make the state visible at load time instead of failing
+ * only after the manager clicks 保存.
+ */
+const configMissing = ref(false);
 
 /**
  * The form is its own reactive model (FormKit fields bind with v-model) so the
@@ -61,6 +68,7 @@ function applyValues(next: NavSettingsValues) {
 async function load() {
   loading.value = true;
   loadError.value = "";
+  configMissing.value = false;
   try {
     applyValues(await fetchNavSettings());
   } catch (error) {
@@ -68,6 +76,7 @@ async function load() {
     // the same defaults as NavSettings.normalized(). The plugin recreates the
     // ConfigMap on its next start, so this only happens after a manual delete.
     if (isNotFound(error)) {
+      configMissing.value = true;
       applyValues(normalizeSettings(null));
     } else {
       loadError.value = errorMessage(error);
@@ -147,6 +156,10 @@ watch(
 );
 
 async function save() {
+  if (configMissing.value) {
+    Toast.error("设置配置不存在，请重启插件后重试");
+    return;
+  }
   saving.value = true;
   try {
     const next: NavSettingsValues = {
@@ -199,6 +212,17 @@ function submit() {
     >
       <template #actions>
         <VButton size="sm" @click="load">重试</VButton>
+      </template>
+    </VAlert>
+
+    <VAlert
+      v-else-if="configMissing"
+      type="warning"
+      title="设置配置不存在"
+      description="插件的设置 ConfigMap 已被删除。请重启插件让 Palette Nav 重新创建配置文件后刷新此页；在此之前设置无法保存。"
+    >
+      <template #actions>
+        <VButton size="sm" @click="load">重新读取</VButton>
       </template>
     </VAlert>
 

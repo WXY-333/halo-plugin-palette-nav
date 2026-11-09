@@ -62,4 +62,14 @@ class NavFooterSanitizerTest {
         assertEquals("", sanitizer.sanitize(null));
         assertEquals("", sanitizer.sanitize("   "));
     }
+
+    @Test
+    void memoizesWithoutServingStaleOutput() {
+        var first = sanitizer.sanitize("<b onclick=\"alert(1)\">one</b>");
+        assertEquals(first, sanitizer.sanitize("<b onclick=\"alert(1)\">one</b>"));
+
+        var second = sanitizer.sanitize("<i>two</i>");
+        assertTrue(second.contains("<i>two</i>"));
+        assertFalse(second.contains("one"));
+    }
 }
