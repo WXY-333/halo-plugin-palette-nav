@@ -13,16 +13,16 @@ class NavIconRendererTest {
     @Test
     void rendersSpriteReference() {
         var html = renderer.render(
-            "<svg class=\"icon\"><use xlink:href=\"#lyicon-doubao\">\r\n</use></svg>",
+            "<svg class=\"icon\"><use xlink:href=\"#pn-code\">\r\n</use></svg>",
             "/default.png");
-        assertTrue(html.contains("#lyicon-doubao"));
+        assertTrue(html.contains("#pn-code"));
         assertFalse(html.contains("script"));
     }
 
     @Test
     void rejectsInlineSvgWithEventHandler() {
         var html = renderer.render(
-            "<svg onload=\"alert(1)\"><use xlink:href=\"#lyicon-doubao\"></use></svg>",
+            "<svg onload=\"alert(1)\"><use xlink:href=\"#pn-code\"></use></svg>",
             "/default.png");
         assertTrue(html.contains("/default.png"));
         assertFalse(html.contains("onload"));

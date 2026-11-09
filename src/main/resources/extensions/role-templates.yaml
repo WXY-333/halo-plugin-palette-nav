@@ -51,10 +51,3 @@ rules:
     resources: ["configmaps"]
     resourceNames: ["palette-nav-config"]
     verbs: ["get", "update"]
-  # create 无法用 resourceNames 限定：Kubernetes RBAC 的 create 请求没有资源名，
-  # Halo 的 RbacRequestEvaluation 也按 URL 中的名称匹配，因此单独声明。
-  # 用于 ConfigMap 被手动删除后，设置页保存时自行重建（与 Halo 官方
-  # role-template-configmap.yaml 的 manage 规则一致）。
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["create"]

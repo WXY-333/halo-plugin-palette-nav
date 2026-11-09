@@ -2,6 +2,7 @@ package cn.litx.palettenav.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.InetAddress;
@@ -145,13 +146,16 @@ class NavLinkMetaServiceTest {
     void dropsFetchedIconsPointingAtReservedAddresses() {
         var service = new NavLinkMetaService();
         // The public page embeds the icon as <img>, so a page on a public host must
-        // not be able to hand the console an icon that probes loopback / link-local.
+        // not be able to hand the console an icon that probes loopback / link-local /
+        // private networks.
         assertEquals("", service.checkedIcon("http://127.0.0.1/favicon.ico").block());
         assertEquals("", service.checkedIcon("http://169.254.169.254/latest/icon.png")
             .block());
+        assertEquals("", service.checkedIcon("http://192.168.1.1/favicon.ico").block());
+        assertEquals("", service.checkedIcon("http://10.0.0.5/favicon.ico").block());
         // Globally routable targets and already-invalid values keep their meaning.
-        assertEquals("http://203.0.113.9/favicon.ico",
-            service.checkedIcon("http://203.0.113.9/favicon.ico").block());
+        assertEquals("http://8.8.8.8/favicon.ico",
+            service.checkedIcon("http://8.8.8.8/favicon.ico").block());
         assertEquals("", service.checkedIcon("").block());
     }
 
@@ -189,12 +193,49 @@ class NavLinkMetaServiceTest {
     }
 
     @Test
-    void allowsPublicAndPrivateLanAddresses() throws Exception {
+    void blocksPrivateLanAndDocumentationRanges() throws Exception {
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("10.0.0.5")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("10.255.255.255")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("172.16.0.1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("172.31.255.255")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("192.168.1.10")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("192.0.2.1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("198.51.100.1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("203.0.113.1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("192.88.99.1")));
+        // Non-global IPv6 prefixes added with the private-network block.
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("2001:10::1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("2001:20::1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("2001:2::1")));
+        assertTrue(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("3fff::1")));
+    }
+
+    @Test
+    void allowsGlobalUnicastAddresses() throws Exception {
         assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("8.8.8.8")));
-        assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("192.168.1.10")));
-        assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("10.0.0.5")));
+        assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("11.0.0.1")));
+        // Just outside 172.16.0.0/12.
+        assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("172.15.255.255")));
+        assertFalse(NavLinkMetaService.isBlockedAddress(InetAddress.getByName("172.32.0.1")));
         assertFalse(NavLinkMetaService.isBlockedAddress(
             InetAddress.getByName("2001:4860:4860::8888")));
+    }
+
+    @Test
+    void rejectsPrivateAndReservedTargetsBeforeConnecting() {
+        var service = new NavLinkMetaService();
+        for (var url : java.util.List.of(
+            "http://127.0.0.1/",
+            "http://10.0.0.5/",
+            "http://172.16.0.1/",
+            "http://192.168.1.1/",
+            "http://169.254.169.254/",
+            "http://[::1]/",
+            "http://[fc00::1]/"
+        )) {
+            assertThrows(IllegalArgumentException.class,
+                () -> service.fetchMeta(url).block(), url);
+        }
     }
 
     @Test

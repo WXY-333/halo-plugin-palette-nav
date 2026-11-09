@@ -261,7 +261,7 @@ function submit() {
               type="text"
               label="版权信息"
               placeholder="Copyright © 2026 Your Name"
-              help="支持少量 HTML，例如链接。"
+              help="支持链接、加粗等安全 HTML；脚本、事件属性和样式会被服务端过滤。"
             />
             <FormKit
               v-model="settings.general.icp"
@@ -278,17 +278,6 @@ function submit() {
               placeholder="京公网安备xxxxxxxxxx号"
               help="留空不显示；数字部分会自动生成查询链接。"
             />
-            <div class="pn-settings-wide">
-              <FormKit
-                v-model="settings.general.customFooterCode"
-                name="customFooterCode"
-                type="textarea"
-                label="自定义页脚代码"
-                :rows="4"
-                placeholder="可填写网站统计脚本等"
-                help="原样输出到页面底部，请只填写可信代码。"
-              />
-            </div>
           </div>
         </VCard>
 

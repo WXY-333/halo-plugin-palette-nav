@@ -2,6 +2,16 @@
 
 本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## 1.0.1 - 2026-11-09
+
+应用市场复审整改：
+
+- 安全：`获取` 的出站请求默认拒绝 RFC1918 内网、CGNAT、TEST-NET 与其它保留地址，不再允许通过管理角色读取内网页面标题或转存内网图标；补充地址校验测试。
+- 权限：`palette-nav-role-manage` 不再拥有 `configmaps create`，只能读写 `palette-nav-config`；设置页保存时若 ConfigMap 缺失会提示重启插件。
+- 安全：移除「自定义页脚代码」字段；版权信息改为服务端 jsoup 白名单净化后输出，`script`、事件属性、`style`、`iframe` 等会被移除。升级后旧配置中的 `customFooterCode` 不再输出。
+- 素材：移除随包第三方图标雪碧图，替换为自制 `pn-*` 图标；默认导航数据同步改用新图标；旧 6 个默认分类 id 会映射为对应分类 logo，其余 `lyicon-*`/`icon-*` 引用回退为通用链接图标。新增 `THIRD-PARTY-NOTICES.md`。
+- 视觉：为 6 个默认分类增加彩色 `pn-cat-*` logo（常用、设计、社交&存储、工具、开发、游戏），链接图标保持单色线条风格。
+
 ## 0.1.0 - 2026-11-08
 
 首个版本。

@@ -15,6 +15,9 @@ dependencies {
     implementation platform('run.halo.tools.platform:plugin:2.27.0')
     compileOnly 'run.halo.app:api'
     compileOnly 'org.springframework:spring-webflux'
+    // Provided by the Halo 2.27 runtime (it bundles jsoup 1.23.1); used to sanitize
+    // the copyright HTML before rendering it with th:utext.
+    compileOnly 'org.jsoup:jsoup'
 
     testImplementation 'run.halo.app:api'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -40,6 +43,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.named('processResources', ProcessResources) {
     from('LICENSE')
+    from('THIRD-PARTY-NOTICES.md')
     exclude '**/*.bak'
     exclude '**/*.orig'
     exclude '**/*.rej'

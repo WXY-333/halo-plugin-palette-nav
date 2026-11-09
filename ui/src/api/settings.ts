@@ -62,7 +62,6 @@ export interface GeneralSettings {
   copyright: string;
   icp: string;
   gonganbei: string;
-  customFooterCode: string;
   /** Whether the public /nav page records visit statistics for the dashboard. */
   enableVisitStats: boolean;
   /** Comma-separated proxy addresses allowed to set X-Forwarded-For / X-Real-IP. */
@@ -113,7 +112,6 @@ const DEFAULT_VALUES: NavSettingsValues = {
     copyright: "",
     icp: "",
     gonganbei: "",
-    customFooterCode: "",
     enableVisitStats: true,
     trustedProxyIps: "",
   },
@@ -232,10 +230,6 @@ export function normalizeSettings(input: unknown): NavSettingsValues {
       copyright: readString(general.copyright, DEFAULT_VALUES.general.copyright).trim(),
       icp: readString(general.icp, DEFAULT_VALUES.general.icp).trim(),
       gonganbei: readString(general.gonganbei, DEFAULT_VALUES.general.gonganbei).trim(),
-      customFooterCode: readString(
-        general.customFooterCode,
-        DEFAULT_VALUES.general.customFooterCode
-      ),
       enableVisitStats: readBoolean(
         general.enableVisitStats,
         DEFAULT_VALUES.general.enableVisitStats
@@ -313,25 +307,15 @@ export async function saveNavSettings(values: NavSettingsValues): Promise<void> 
     ).data;
   } catch (error) {
     // A missing ConfigMap is a normal "never saved" state (`load()` treats it the
-    // same way), so save creates it instead of failing until the next plugin start.
+    // same way). The plugin recreates it on its next start; the manage role has no
+    // permission to create ConfigMaps, so save must not try to create it here.
     if (!isNotFound(error)) {
       throw error;
     }
   }
 
   if (!current) {
-    await coreApiClient.configMap.createConfigMap(
-      {
-        configMap: {
-          apiVersion: "v1alpha1",
-          kind: "ConfigMap",
-          metadata: { name: SETTINGS_CONFIG_MAP },
-          data: groups,
-        },
-      },
-      SILENT_REQUEST
-    );
-    return;
+    throw new Error("设置配置不存在，请重启插件后重试");
   }
 
   await coreApiClient.configMap.updateConfigMap(

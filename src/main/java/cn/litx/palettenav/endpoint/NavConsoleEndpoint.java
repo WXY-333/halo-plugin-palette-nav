@@ -103,7 +103,7 @@ public class NavConsoleEndpoint implements CustomEndpoint {
                     .implementation(NavLinkMeta.class))
                 .response(responseBuilder()
                     .responseCode("400")
-                    .description("网址不合法或指向保留地址"))
+                    .description("网址不合法或指向内网/保留地址"))
                 .response(responseBuilder()
                     .responseCode("413")
                     .description("请求内容过大"))

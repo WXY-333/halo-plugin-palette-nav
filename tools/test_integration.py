@@ -463,7 +463,13 @@ def test_link_meta() -> None:
     blocked = [
         ("loopback IPv4", "http://127.0.0.1:8096/nav"),
         ("loopback name", "http://localhost:8096/"),
+        ("IPv6 loopback", "http://[::1]/"),
         ("link-local metadata", "http://169.254.169.254/latest/meta-data/"),
+        ("private 10/8", "http://10.0.0.5/"),
+        ("private 172.16/12", "http://172.16.0.1/"),
+        ("private 192.168/16", "http://192.168.1.1/"),
+        ("CGNAT", "http://100.64.0.1/"),
+        ("TEST-NET", "http://203.0.113.1/"),
         ("file scheme", "file:///etc/passwd"),
         ("javascript scheme", "javascript:alert(1)"),
         ("site-relative", "/about"),
@@ -651,7 +657,7 @@ def test_nav_render_security() -> None:
     cat = f"{RUN_ID}-nav-cat"
     create("NavCategory", cat, {
         "displayName": f"NAVCAT {TAG}",
-        "icon": "<svg class=\"icon\"><use xlink:href=\"#lyicon-doubao\"></use></svg>",
+        "icon": "<svg class=\"icon\"><use xlink:href=\"#pn-code\"></use></svg>",
         "sort": 10, "visible": True,
     })
     create("NavCategory", f"{RUN_ID}-hidden-cat", {
@@ -692,7 +698,7 @@ def test_nav_render_security() -> None:
     create("NavLink", links["sprite"], {
         "categoryName": cat, "displayName": f"SPRITELINK {TAG}",
         "url": "https://sprite.example.com",
-        "icon": "<svg class=\"icon\"><use xlink:href=\"#lyicon-doubao\"></use></svg>",
+        "icon": "<svg class=\"icon\"><use xlink:href=\"#pn-code\"></use></svg>",
         "sort": 50, "visible": True})
     create("NavLink", links["inline"], {
         "categoryName": cat, "displayName": f"INLINELINK {TAG}",
@@ -774,7 +780,7 @@ def test_nav_render_security() -> None:
     R.check("quick link without new tab rendered", f"QUICKSAME {TAG}" in html)
 
     # Icons go through the sanitizer before th:utext.
-    R.check("sprite icon rendered as a reference", 'href="#lyicon-doubao"' in html)
+    R.check("sprite icon rendered as a reference", 'href="#pn-code"' in html)
     R.check("inline SVG rendered as a data URL", "data:image/svg+xml;base64," in html)
     R.check("script-bearing SVG falls back to the default icon",
             "default-icon.png" in html)

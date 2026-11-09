@@ -102,13 +102,13 @@ class NavQueryServiceTest {
     @Test
     void collectsSpriteIdsOnlyForIconsThatAreActuallyRendered() {
         var category = category("cat-a", "常用", 10, null);
-        category.getSpec().setIcon(sprite("icon-remen"));
+        category.getSpec().setIcon(sprite("pn-common"));
         var visible = link("link-1", "cat-a", "示例", "https://example.com", 10, null);
-        visible.getSpec().setIcon(sprite("icon-game00"));
+        visible.getSpec().setIcon(sprite("pn-game"));
         var hidden = link("link-2", "cat-a", "隐藏", "https://hidden.example.com", 20, false);
-        hidden.getSpec().setIcon(sprite("icon-msg"));
+        hidden.getSpec().setIcon(sprite("pn-message"));
         var engine = engine("engine-1", "https://www.example.com/s?q=", null, 10, null);
-        engine.getSpec().setIcon(sprite("icon-sheji"));
+        engine.getSpec().setIcon(sprite("pn-design"));
 
         stub(NavCategory.class, List.of(category));
         stub(NavLink.class, List.of(visible, hidden));
@@ -117,7 +117,7 @@ class NavQueryServiceTest {
 
         var data = service.loadVisiblePageData(null, CONTEXT_PATH).block();
 
-        assertEquals(Set.of("icon-remen", "icon-game00", "icon-sheji"),
+        assertEquals(Set.of("pn-common", "pn-game", "pn-design"),
             data.getSpriteIds());
     }
 

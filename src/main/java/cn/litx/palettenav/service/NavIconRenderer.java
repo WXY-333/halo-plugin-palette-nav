@@ -11,7 +11,7 @@ import org.springframework.web.util.HtmlUtils;
  * Converts the admin-provided icon value into sanitized HTML.
  *
  * <p>Four shapes are accepted: an SVG sprite reference
- * ({@code <svg><use href="#lyicon-x"/></svg>}), arbitrary inline SVG source (embedded
+ * ({@code <svg><use href="#pn-x"/></svg>}), arbitrary inline SVG source (embedded
  * as a base64 data URL image, so scripts inside it never execute), an http(s)/
  * site-relative image URL, or a short text/emoji. Everything else falls back to the
  * default icon, which prevents stored XSS through {@code th:utext}.</p>

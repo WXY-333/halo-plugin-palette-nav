@@ -3,6 +3,17 @@ import { CONTEXT_PATH } from "@/api/nav";
 const SPRITE_SVG =
   /^\s*<svg\b[^>]*>\s*<use\b[^>]*(?:xlink:href|href)\s*=\s*["']#([A-Za-z0-9_-]+)["'][^>]*>\s*(?:<\/use\s*>)?<\/svg>\s*$/i;
 const UNSAFE = /<script\b|<\/script\s*>|on[a-z]+\s*=|javascript:/i;
+/** Ids from the iconfont sprite that older releases bundled. */
+const LEGACY_SPRITE_ID = /^(?:lyicon|icon)-[A-Za-z0-9_-]+$/;
+/** Legacy seeded category ids upgraded to the matching coloured category logo. */
+const LEGACY_SPRITE_MAP: Record<string, string> = {
+  "icon-remen": "pn-cat-common",
+  "icon-sheji": "pn-cat-design",
+  "icon-msg": "pn-cat-cloud",
+  "icon-ai-tool": "pn-cat-tools",
+  "icon-kongzhitai": "pn-cat-dev",
+  "icon-game00": "pn-cat-games",
+};
 
 let spritePromise: Promise<void> | null = null;
 
@@ -132,6 +143,15 @@ export function isUnsafeIconMarkup(icon?: string | null): boolean {
   return UNSAFE.test((icon ?? "").trim());
 }
 
+/**
+ * Maps an icon id from the removed iconfont sprite to the generic link glyph that
+ * the new palette sprite provides, so existing data still previews in the console.
+ * Mirrors `NavIconSpriteService`'s legacy fallback on the server.
+ */
+export function resolveSpriteId(id: string): string {
+  return LEGACY_SPRITE_MAP[id] ?? (LEGACY_SPRITE_ID.test(id) ? "pn-link" : id);
+}
+
 function svgDataUrl(value: string): string {
   const bytes = new TextEncoder().encode(value);
   let binary = "";
@@ -155,7 +175,10 @@ export function sanitizeIconHtml(icon?: string | null): string {
     }
     const match = value.match(SPRITE_SVG);
     if (match) {
-      const id = match[1];
+      const id = resolveSpriteId(match[1] ?? "");
+      if (!id) {
+        return "";
+      }
       return `<svg class="icon" aria-hidden="true"><use href="#${id}" xlink:href="#${id}"></use></svg>`;
     }
     return `<img src="${svgDataUrl(value)}" alt="" loading="lazy" decoding="async">`;
@@ -182,17 +205,16 @@ function loadScript(src: string): Promise<void> {
 }
 
 /**
- * Loads the icon sprite bundle once so admin previews can render
- * <use href="#lyicon-*"> icons.
+ * Loads the bundled palette sprite once so admin previews can render
+ * <use href="#pn-*"> icons. Legacy iconfont ids are resolved to `pn-link` by
+ * {@link resolveSpriteId}.
  */
 export function ensureIconSprite(): Promise<void> {
   if (!spritePromise) {
     const base = `${CONTEXT_PATH}/plugins/palette-nav/assets/nav/vendor`;
-    spritePromise = loadScript(`${base}/icon.js`)
-      .then(() => loadScript(`${base}/svg.js`))
-      .catch(() => {
-        spritePromise = null;
-      });
+    spritePromise = loadScript(`${base}/palette-icons.js`).catch(() => {
+      spritePromise = null;
+    });
   }
   return spritePromise;
 }

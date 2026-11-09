@@ -5,6 +5,7 @@ import static org.springframework.web.reactive.function.server.RouterFunctions.r
 import cn.litx.palettenav.constants.NavConstants;
 import cn.litx.palettenav.config.NavSettingsService;
 import cn.litx.palettenav.config.NavSiteInfoService;
+import cn.litx.palettenav.service.NavFooterSanitizer;
 import cn.litx.palettenav.service.NavIconSpriteService;
 import cn.litx.palettenav.service.NavMediaType;
 import cn.litx.palettenav.service.NavQueryService;
@@ -36,6 +37,7 @@ public class NavPageRouter {
 
     private final NavQueryService queryService;
     private final NavIconSpriteService iconSpriteService;
+    private final NavFooterSanitizer footerSanitizer;
     private final NavSettingsService settingsService;
     private final NavSiteInfoService siteInfoService;
     private final NavYiyanService yiyanService;
@@ -94,11 +96,10 @@ public class NavPageRouter {
                 model.put("logoUrl", resolveLogo(general.getLogoUrl()));
                 model.put("brandText", resolveBrandText(general.getBrandText(),
                     general.getSiteName(), siteInfo.title()));
-                model.put("copyright", general.getCopyright());
+                model.put("copyright", footerSanitizer.sanitize(general.getCopyright()));
                 model.put("icp", general.getIcp());
                 model.put("gonganbei", general.getGonganbei());
                 model.put("gonganbeiCode", firstDigits(general.getGonganbei()));
-                model.put("customFooterCode", general.getCustomFooterCode());
                 model.put("seoDescription", general.getSiteDescription());
                 model.put("seoKeywords", general.getSiteKeywords());
                 model.put("siteName", general.getSiteName());

@@ -44,7 +44,6 @@ public final class NavSettings {
         private String copyright;
         private String icp;
         private String gonganbei;
-        private String customFooterCode;
         /** Whether the public /nav page should record visit statistics. */
         private Boolean enableVisitStats;
         /**
@@ -82,7 +81,6 @@ public final class NavSettings {
             copyright = trim(copyright);
             icp = trim(icp);
             gonganbei = trim(gonganbei);
-            customFooterCode = customFooterCode == null ? "" : customFooterCode;
             enableVisitStats = enableVisitStats == null || enableVisitStats;
             trustedProxyIps = normalizeList(trustedProxyIps);
             return this;

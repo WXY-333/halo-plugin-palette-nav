@@ -44,9 +44,10 @@ import reactor.core.scheduler.Schedulers;
  * HTTP client resolve the host a second time: a DNS-rebinding host would otherwise pass
  * the loopback/link-local check and then be re-resolved to a reserved address when the
  * connection is opened. Redirects are followed manually so every hop goes through the
- * same validation. Loopback, link-local, multicast and similar reserved targets are
- * rejected to keep the console endpoint from acting as an SSRF proxy; private LAN ranges
- * stay allowed because intranet shortcuts are a normal use case for a navigation page.</p>
+ * same validation. Loopback, link-local, multicast, RFC 1918 private networks and the
+ * other non-routable / documentation ranges are rejected to keep the console endpoint
+ * from acting as an SSRF proxy. Intranet pages can still be added manually; only the
+ * automatic title/icon fetch refuses to reach them.</p>
  */
 @Slf4j
 @Service
@@ -143,12 +144,12 @@ public class NavLinkMetaService {
 
     /**
      * Drops an icon URL that points into a network the server itself refuses to
-     * fetch (loopback, link-local, CGNAT, reserved). The icon is embedded in the
-     * public page as an {@code <img>} for every visitor, so a page on a public host
-     * could otherwise make visitors' browsers probe reserved addresses that an
-     * SSRF-guarded server request never reaches. Private LAN targets stay allowed,
-     * matching {@link #resolveTarget(URI)}. A name that does not resolve is kept:
-     * nothing here can prove it unsafe and the console may still use it.
+     * fetch (loopback, link-local, CGNAT, private LAN and reserved ranges). The icon
+     * is embedded in the public page as an {@code <img>} for every visitor, so a page
+     * on a public host could otherwise make visitors' browsers probe reserved
+     * addresses that an SSRF-guarded server request never reaches. A name that does
+     * not resolve is kept: nothing here can prove it unsafe and the console may still
+     * use it.
      */
     Mono<String> checkedIcon(String icon) {
         if (!NavUrlValidator.isSafeHttpUrl(icon)) {
@@ -574,10 +575,11 @@ public class NavLinkMetaService {
     /* --------------------------- Validation -------------------------- */
 
     /**
-     * Resolves the host once and rejects addresses that can reach the server itself or
-     * link-local metadata services. The returned addresses are also the ones the caller
-     * must connect to, so the name is never re-resolved. RFC 1918 ranges are
-     * intentionally allowed.
+     * Resolves the host once and rejects addresses that can reach the server itself,
+     * link-local metadata services or a private network. The returned addresses are
+     * also the ones the caller must connect to, so the name is never re-resolved.
+     * RFC 1918, CGNAT and the documentation / benchmarking ranges are all blocked by
+     * default; there is no internal-host allow-list.
      */
     private Mono<List<InetAddress>> resolveTarget(URI uri) {
         return Mono.fromCallable(() -> resolve(uri))
@@ -653,18 +655,28 @@ public class NavLinkMetaService {
     /**
      * Reserved / non-routable IPv4 ranges, read from {@code offset} so the same rules
      * can validate an IPv4 address embedded in a transition IPv6 prefix.
+     *
+     * <p>Private LAN ranges are blocked on purpose: the console endpoint must not be
+     * usable as an SSRF primitive, so an intranet shortcut never reaches this outbound
+     * reader even when the configured role is only {@code palette-nav-role-manage}.</p>
      */
     private static boolean isBlockedV4(byte[] bytes, int offset) {
         var first = bytes[offset] & 0xff;
         var second = bytes[offset + 1] & 0xff;
         var third = bytes[offset + 2] & 0xff;
-        return first == 0
+        return first == 0 // 0.0.0.0/8
+            || first == 10 // 10.0.0.0/8
             || first == 127 // loopback
-            || (first == 169 && second == 254) // link-local
+            || (first == 169 && second == 254) // 169.254.0.0/16 link-local
             || (first == 100 && (second & 0xc0) == 64) // 100.64.0.0/10 CGNAT
-            || (first == 192 && second == 0 && third == 0) // 192.0.0.0/24
+            || (first == 172 && second >= 16 && second <= 31) // 172.16.0.0/12
+            || (first == 192 && second == 0 && (third == 0 || third == 2)) // 192.0.0.0/24, 192.0.2.0/24
+            || (first == 192 && second == 88 && third == 99) // 192.88.99.0/24 6to4 relay
+            || (first == 192 && second == 168) // 192.168.0.0/16
             || (first == 198 && (second == 18 || second == 19)) // 198.18.0.0/15
-            || first >= 240; // reserved / broadcast
+            || (first == 198 && second == 51 && third == 100) // 198.51.100.0/24 TEST-NET-2
+            || (first == 203 && second == 0 && third == 113) // 203.0.113.0/24 TEST-NET-3
+            || first >= 240; // 240.0.0.0/4 reserved / broadcast
     }
 
     /**
@@ -674,7 +686,8 @@ public class NavLinkMetaService {
      * {@code fe80::/10} (link-local) and multicast all reach the host itself or an
      * IPv4 target through a translation prefix. The two transition prefixes inside
      * {@code 2000::/3} that carry an IPv4 address (6to4 and Teredo) are decoded and
-     * checked against the IPv4 rules.
+     * checked against the IPv4 rules. ORCHID, benchmarking and the newer documentation
+     * prefix inside {@code 2000::/3} are rejected explicitly.
      */
     private static boolean isBlockedV6(byte[] bytes) {
         if ((bytes[0] & 0xe0) != 0x20) {
@@ -683,6 +696,21 @@ public class NavLinkMetaService {
         // 2001:db8::/32 is documentation-only and never routed.
         if (bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x0d
             && (bytes[3] & 0xff) == 0xb8) {
+            return true;
+        }
+        // 2001:10::/28 (ORCHID) and 2001:20::/28 (ORCHIDv2) are not globally routable;
+        // 2001:2::/48 is the benchmarking range.
+        if (bytes[0] == 0x20 && bytes[1] == 0x01 && bytes[2] == 0x00) {
+            var fourth = bytes[3] & 0xff;
+            if ((fourth & 0xf0) == 0x10 || (fourth & 0xf0) == 0x20) {
+                return true;
+            }
+            if (fourth == 0x02 && bytes[4] == 0 && bytes[5] == 0) {
+                return true;
+            }
+        }
+        // 3fff::/20 is reserved for documentation.
+        if (bytes[0] == 0x3f && (bytes[1] & 0xff) == 0xff && (bytes[2] & 0xf0) == 0x00) {
             return true;
         }
         // 6to4 (2002::/16) embeds the peer IPv4 address in bytes 2..5.

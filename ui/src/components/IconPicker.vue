@@ -201,7 +201,7 @@ function submitSvg() {
             placeholder='<svg viewBox="0 0 24 24"><path d="..."/></svg>'
           ></textarea>
           <span class="pn-hint">
-            粘贴完整 SVG 代码，或雪碧图引用 &lt;svg&gt;&lt;use href="#lyicon-xxx"&gt;&lt;/use&gt;&lt;/svg&gt;。
+            粘贴完整 SVG 代码，或雪碧图引用 &lt;svg&gt;&lt;use href="#pn-xxx"&gt;&lt;/use&gt;&lt;/svg&gt;。
             内联 SVG 会以图片形式安全渲染。
           </span>
         </div>

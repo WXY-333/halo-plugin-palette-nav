@@ -15,31 +15,47 @@ import org.springframework.stereotype.Service;
 /**
  * Builds the inline SVG sprite used by the public {@code /nav} page.
  *
- * <p>The console still loads the full iconfont sprite scripts for its preview and
- * picker, but the public page only needs the handful of symbols referenced by the
- * current data. Loading {@code icon.js} (about 220 KB gzipped) on every visit just to
- * satisfy a few {@code <use>} references was the largest static payload of the page.
- * The sprite sources are parsed once, then only the referenced symbols are inlined into
- * the page. The markup comes from the bundled files and symbol ids are already
- * restricted to {@code [A-Za-z0-9_-]} by {@link NavIconRenderer}, so nothing here is
- * user-controlled.</p>
+ * <p>The console loads the same {@code palette-icons.js} file for its preview, but the
+ * public page only needs the handful of symbols referenced by the current data. The
+ * sprite is parsed once, then only the referenced symbols are inlined into the page.
+ * The markup comes from a bundled file of original line icons and symbol ids are
+ * already restricted to {@code [A-Za-z0-9_-]} by {@link NavIconRenderer}, so nothing
+ * here is user-controlled.</p>
  */
 @Slf4j
 @Service
 public class NavIconSpriteService {
 
     /**
-     * The console-facing sprite scripts are the source of truth, so the public page
-     * cannot drift from the icon picker after an icon set update.
+     * The console-facing sprite file is the source of truth, so the public page
+     * cannot drift from the console preview after an icon set update.
      */
     private static final String[] SPRITE_RESOURCES = {
-        "static/nav/vendor/icon.js",
-        "static/nav/vendor/svg.js"
+        "static/nav/vendor/palette-icons.js"
     };
 
     private static final Pattern SYMBOL = Pattern.compile("(?is)<symbol\\b[^>]*>.*?</symbol>");
     private static final Pattern SYMBOL_ID = Pattern.compile(
         "(?is)<symbol\\b[^>]*\\bid\\s*=\\s*[\"']([A-Za-z0-9_-]+)[\"']");
+    /**
+     * Ids shipped by the old iconfont sprite. They are no longer present in the
+     * bundled file, but existing installations may still reference them.
+     */
+    private static final Pattern LEGACY_ID = Pattern.compile(
+        "^(?:lyicon|icon)-[A-Za-z0-9_-]+$");
+    private static final String GENERIC_LINK_ID = "pn-link";
+    /**
+     * Legacy ids used by the seeded categories (and by some saved data). They are
+     * upgraded to the matching coloured category logo instead of the generic link.
+     */
+    private static final Map<String, String> LEGACY_CATEGORY_IDS = Map.of(
+        "icon-remen", "pn-cat-common",
+        "icon-sheji", "pn-cat-design",
+        "icon-msg", "pn-cat-cloud",
+        "icon-ai-tool", "pn-cat-tools",
+        "icon-kongzhitai", "pn-cat-dev",
+        "icon-game00", "pn-cat-games"
+    );
 
     private volatile Map<String, String> symbols;
 
@@ -69,6 +85,10 @@ public class NavIconSpriteService {
                 continue;
             }
             var markup = available.get(id);
+            if (markup == null && LEGACY_ID.matcher(id).matches()) {
+                var target = LEGACY_CATEGORY_IDS.getOrDefault(id, GENERIC_LINK_ID);
+                markup = legacySymbol(id, available.get(target));
+            }
             if (markup != null) {
                 builder.append(markup);
             }
@@ -78,6 +98,17 @@ public class NavIconSpriteService {
         }
         return "<svg class=\"icon-sprite\" aria-hidden=\"true\" focusable=\"false\">"
             + builder + "</svg>";
+    }
+
+    /**
+     * Emits the mapped glyph under an old iconfont id, so data saved before the icon
+     * set was replaced keeps rendering instead of disappearing.
+     */
+    private static String legacySymbol(String id, String generic) {
+        if (generic == null) {
+            return null;
+        }
+        return generic.replaceFirst("id=\"[A-Za-z0-9_-]+\"", "id=\"" + id + "\"");
     }
 
     private Map<String, String> symbols() {

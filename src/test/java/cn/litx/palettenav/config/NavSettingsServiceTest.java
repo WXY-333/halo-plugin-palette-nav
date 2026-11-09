@@ -59,6 +59,21 @@ class NavSettingsServiceTest {
     }
 
     @Test
+    void ignoresRemovedFooterCodeInStoredSettings() {
+        // Older versions stored customFooterCode in the general group. The field was
+        // removed, but its presence must not make the whole group fall back to defaults.
+        var data = Map.of(
+            NavSettings.GROUP_GENERAL,
+            "{\"siteName\":\"Legacy Nav\",\"customFooterCode\":\"<script>alert(1)</script>\"}"
+        );
+
+        var snapshot = serviceWith(data).get().block(Duration.ofSeconds(5));
+
+        assertNotNull(snapshot);
+        assertEquals("Legacy Nav", snapshot.getGeneral().getSiteName());
+    }
+
+    @Test
     void fallsBackToDefaultsWhenTheConfigMapIsMissing() {
         var client = mock(ReactiveExtensionClient.class);
         when(client.fetch(ConfigMap.class, NavSettings.CONFIG_MAP_NAME))

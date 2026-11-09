@@ -61,7 +61,7 @@ pnpm -C ui install
 ./gradlew build
 ```
 
-产物：`build/libs/palette-nav-1.0.0.jar`，可直接在 Halo 控制台「插件 → 安装」上传。
+产物：`build/libs/palette-nav-<version>.jar`，可直接在 Halo 控制台「插件 → 安装」上传。
 
 ### 本地 8095 调试（无 Docker）
 
@@ -91,7 +91,7 @@ pnpm -C ui install
 
 设置已合并到控制台 `/console/palette-nav` 的「设置」页签。插件不声明 Halo Setting，因此插件详情页没有设置入口，插件列表的「重置配置」也不会出现。没有保存过设置的新实例会使用内置默认值（站点名称、描述、关键词、品牌文字、紫色主题等）。共五组设置：
 
-- **基本设置**：标题、描述、关键词、LOGO（支持上传 / 附件库 / 链接）、品牌文字、版权、ICP、公安备案、自定义页脚代码
+- **基本设置**：标题、描述、关键词、LOGO（支持上传 / 附件库 / 链接）、品牌文字、版权、ICP、公安备案
 - **访问统计**：访问统计开关（`enableVisitStats`）与可信反向代理地址（`trustedProxyIps`）。关闭后不再记录新的访问，历史数据仍会展示；只有来自本机回环地址或 `trustedProxyIps` 的 `X-Forwarded-For` / `X-Real-IP` 才会被采信，留空表示只信任本机代理。多级代理（CDN → nginx → Halo）需要逐一填写每一跳代理地址才能取到真实访客 IP
 - **外观设置**：默认主题色、默认明暗模式、时钟、一言、背景媒体（图片或视频，支持上传 / 附件库 / 链接）
 - **附件存储**：新增/编辑链接点击「获取」时，网站图标会先转存到 Halo 附件再引用；控制台通过「上传」添加的图标、LOGO 与背景也会存入这里指定的存储策略与附件分组。留空时使用上传界面中优先级最高的存储策略、不分组
@@ -99,7 +99,7 @@ pnpm -C ui install
 
 图标字段支持控制台内直接上传图片/SVG 文件、从 Halo 附件库选择、填写图片地址或粘贴 SVG 代码，底层兼容三种存储形式：
 
-1. SVG 雪碧图引用（`<svg><use xlink:href="#lyicon-x"></use></svg>`）
+1. SVG 雪碧图引用（`<svg><use xlink:href="#pn-x"></use></svg>`，可用图标见 `palette-icons.js`；分类默认使用彩色 `pn-cat-*` logo，链接使用 `pn-*` 线条图标；旧版 6 个默认分类 id 会映射到对应分类 logo，其余 `lyicon-*`/`icon-*` 引用显示为通用链接图标）
 2. 完整 SVG 代码（渲染时转为 base64 data URL 图片，脚本不会执行）
 3. `http(s)://` 或站内 `/...` 图片地址（上传的文件会写入附件库）
 
@@ -115,7 +115,7 @@ pnpm -C ui install
 
 插件只申请完成自身功能所需的权限，不读写其他插件或系统配置：
 
-- `plugin:palette-nav:manage`：访问 `/console/palette-nav`，管理四类导航数据、拖拽排序、分类级联删除、读取仪表盘，以及读写本插件设置（`resourceNames` 限定为 `palette-nav`）。
+- `plugin:palette-nav:manage`：访问 `/console/palette-nav`，管理四类导航数据、拖拽排序、分类级联删除、读取仪表盘，以及读写本插件设置（`configmaps` 的 `get`/`update` 通过 `resourceNames` 限定为 `palette-nav-config`，没有创建任意 ConfigMap 的权限）。
 - 附件相关：上传图标/背景文件并读取 Halo 附件库（`attachments` 读取与上传、存储策略/分组读取）。
 - `/nav` 是公开页面，不需要登录或额外权限。
 
@@ -134,8 +134,8 @@ pnpm -C ui install
 - 从目标网页抓取的图标只接受 PNG/JPEG/GIF/WebP/ICO/BMP/AVIF 的魔数校验结果；SVG 不会转存为附件（Halo 内联展示附件时可能执行其中的脚本），而是保留原地址并通过 `<img>` 引用。
 - `/nav` 为公开页面；排序与分类级联删除接口仅对拥有 `plugin:palette-nav:manage` 权限的角色开放。
 - 「获取」使用插件内置的出站客户端：先解析并校验目标地址，再连接已校验的 IP（防 DNS rebinding），逐跳校验重定向，限制响应大小与超时，并按文件魔数识别图片。为了固定连接地址，它不经过 Halo/系统的 HTTP 代理与自定义 CA 配置；若部署环境必须经代理访问外网，需要额外改造。
-- 出站目标拒绝 loopback、link-local、multicast 与部分保留网段，但**有意允许 RFC1918 内网地址**，以支持内网导航入口。面向多租户或不可信管理员时，应改为可配置或直接禁止内网地址。
-- 版权信息与「自定义页脚代码」按管理员输入原样输出，仅应由可信管理员配置；拥有 `plugin:palette-nav:manage` 权限即具备在前台页面注入脚本的能力。
+- 出站目标默认拒绝 loopback、link-local、multicast、RFC1918 私有网段、CGNAT 与文档/保留网段，不提供内网白名单。内网站点仍可手动填写名称与图标，只是「获取」不会抓取内网页面。
+- 版权信息在服务端经过 jsoup 白名单净化后再输出到 `/nav`：仅保留链接、加粗、斜体等文本级 HTML，`script`、事件属性、`style`、`iframe` 等会被移除；「自定义页脚代码」字段已移除。拥有 `plugin:palette-nav:manage` 的角色无法通过设置页向公开页面注入脚本。
 
 ## 目录
 
@@ -157,3 +157,5 @@ docs/screenshots/                   README 截图
 ## License
 
 MIT。
+
+插件内的图标、默认导航数据、背景图与 LOGO 均为本项目自制或已取得授权；不再随包分发第三方图标集。默认导航数据中的品牌名称与网址仅用于指向对应服务，相关商标归各权利人所有。详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
