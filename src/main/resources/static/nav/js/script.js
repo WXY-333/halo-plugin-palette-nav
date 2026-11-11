@@ -838,10 +838,12 @@
         loadingImage.onload = function () {
             spinner.hidden = true;
             loadingImage.hidden = false;
+            loading.classList.add('has-image');
         };
         loadingImage.onerror = function () {
             loadingImage.hidden = true;
             spinner.hidden = false;
+            loading.classList.remove('has-image');
         };
         loading.appendChild(loadingImage);
         var status = document.createElement('span');
@@ -909,6 +911,7 @@
                 status.textContent = '正在加载封面…';
                 spinner.hidden = false;
                 loadingImage.hidden = true;
+                loading.classList.remove('has-image');
                 var data = card.querySelector('.link-cover-data');
                 var url = data ? data.getAttribute('data-cover-url') : '';
                 if (url) {
@@ -918,6 +921,7 @@
                         } else if (loadingImage.complete && loadingImage.naturalWidth) {
                             spinner.hidden = true;
                             loadingImage.hidden = false;
+                            loading.classList.add('has-image');
                         }
                     }
                     var image = new Image();
@@ -933,6 +937,7 @@
                         image.onload = image.onerror = null;
                         pending = null;
                         popup.classList.add('is-error');
+                        loading.classList.remove('has-image');
                         status.textContent = '封面加载失败，可点击链接访问网站';
                     }
                     image.onload = function () {
