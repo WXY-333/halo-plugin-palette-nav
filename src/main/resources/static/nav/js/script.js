@@ -896,6 +896,10 @@
                 return;
             }
             close();
+            var coverData = card.querySelector('.link-cover-data');
+            if (!coverData || !trimText(coverData.getAttribute('data-cover-url'))) {
+                return;
+            }
             current = card;
             var token = sequence;
             delayTimer = setTimeout(function () {
@@ -960,8 +964,8 @@
                     timeoutTimer = setTimeout(failed, 12000);
                     image.src = url;
                 } else {
-                    popup.classList.add('is-error');
-                    status.textContent = '暂未设置主页封面';
+                    close();
+                    return;
                 }
                 place(card);
                 card.setAttribute('aria-describedby', popup.id);
