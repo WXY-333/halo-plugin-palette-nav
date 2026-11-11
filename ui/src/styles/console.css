@@ -505,7 +505,8 @@ body.pn-dragging * {
   height: 72px;
 }
 
-.pn-media-field--background .pn-media-thumb {
+.pn-media-field--background .pn-media-thumb,
+.pn-media-field--preview .pn-media-thumb {
   width: 168px;
   height: 94px;
 }
@@ -553,6 +554,18 @@ body.pn-dragging * {
   box-sizing: border-box;
   padding: 8px;
   object-fit: contain;
+}
+
+.pn-media-field--preview .pn-media-frame img {
+  object-fit: contain;
+}
+
+/* Halo's Switch marks the enabled state with !bg-primary. Keep this override
+   inside the plugin so host buttons and switches retain their own theme. */
+.pn-page .switch-wrapper .switch-inner[class~="!bg-primary"] {
+  background-color: #4ccba0 !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 .pn-media-placeholder {
@@ -745,6 +758,30 @@ body.pn-dragging * {
   grid-column: 1 / -1;
 }
 
+.pn-page .pn-settings-filing-icon > .pn-form-block {
+  margin-bottom: 10px;
+}
+
+/* Nested fields need their own spacing because the parent grid removes
+   FormKit's default vertical padding. */
+.pn-page .pn-settings-background {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 16px;
+}
+
+.pn-page .pn-settings-switches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.pn-page .pn-settings-switches > .formkit-outer {
+  flex: 1 1 220px;
+}
+
 /* Saves stay reachable while scrolling a long settings list, matching Halo's
    own setting pages. */
 .pn-settings-footer {
@@ -791,7 +828,8 @@ body.pn-dragging * {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .pn-media-field--background .pn-media-thumb {
+  .pn-media-field--background .pn-media-thumb,
+  .pn-media-field--preview .pn-media-thumb {
     width: 132px;
     height: 76px;
   }

@@ -75,6 +75,28 @@ class NavQueryServiceTest {
     }
 
     @Test
+    void coversAllowOnlySafeImageUrls() {
+        var category = category("cat-a", "常用", 10, null);
+        var safe = link("cover-1", "cat-a", "封面", "https://example.com", 10, null);
+        safe.getSpec().setCoverUrl(" /upload/home.png ");
+        var unsafe = link("cover-2", "cat-a", "脚本", "https://example.com", 20, null);
+        unsafe.getSpec().setCoverUrl("javascript:alert(1)");
+        var missing = link("cover-3", "cat-a", "空", "https://example.com", 30, null);
+        var protocolRelative = link("cover-4", "cat-a", "协议", "https://example.com", 40, null);
+        protocolRelative.getSpec().setCoverUrl("//example.com/cover.png");
+        stub(NavCategory.class, List.of(category));
+        stub(NavLink.class, List.of(safe, unsafe, missing, protocolRelative));
+        stub(NavSearchEngine.class, List.of());
+        stub(NavQuickLink.class, List.of());
+        var links = service.loadVisiblePageData(null, CONTEXT_PATH).block()
+            .getCategories().getFirst().getLinks();
+        assertEquals("/upload/home.png", links.get(0).getCoverUrl());
+        assertEquals("", links.get(1).getCoverUrl());
+        assertEquals("", links.get(2).getCoverUrl());
+        assertEquals("", links.get(3).getCoverUrl());
+    }
+
+    @Test
     void categoryAndLinkIconsAreSanitized() {
         var category = category("cat-a", "常用", 10, null);
         category.getSpec().setIcon("<svg><script>alert(1)</script></svg>");
@@ -227,6 +249,26 @@ class NavQueryServiceTest {
             data.getQuickLinks().stream().map(NavPageData.QuickLinkView::getDisplayName)
                 .toList());
         assertTrue(data.getQuickLinks().getFirst().isOpenInNewTab());
+    }
+
+    @Test
+    void quickLinkIconsSupportSvgSpritesAndRejectScripts() {
+        var svg = quickLink("quick-svg", "SVG", "/svg", true, 10, null);
+        svg.getSpec().setIcon("<svg viewBox=\"0 0 1 1\"><circle r=\"1\"/></svg>");
+        var sprite = quickLink("quick-sprite", "Sprite", "/sprite", true, 20, null);
+        sprite.getSpec().setIcon(sprite("pn-link"));
+        var unsafe = quickLink("quick-unsafe", "Unsafe", "/unsafe", true, 30, null);
+        unsafe.getSpec().setIcon("<svg><script>alert(1)</script></svg>");
+        stub(NavCategory.class, List.of());
+        stub(NavLink.class, List.of());
+        stub(NavSearchEngine.class, List.of());
+        stub(NavQuickLink.class, List.of(svg, sprite, unsafe));
+        var data = service.loadVisiblePageData(null, CONTEXT_PATH).block();
+        assertTrue(data.getQuickLinks().get(0).getIconHtml()
+            .contains("data:image/svg+xml;base64,"));
+        assertTrue(data.getQuickLinks().get(1).getIconHtml().contains("#pn-link"));
+        assertEquals("", data.getQuickLinks().get(2).getIconHtml());
+        assertTrue(data.getSpriteIds().contains("pn-link"));
     }
 
     @Test

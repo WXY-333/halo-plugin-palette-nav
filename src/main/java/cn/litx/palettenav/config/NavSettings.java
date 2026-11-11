@@ -44,6 +44,9 @@ public final class NavSettings {
         private String copyright;
         private String icp;
         private String gonganbei;
+        private String icpIcon;
+        private String gonganbeiIcon;
+        private Boolean showFooterStats;
         /** Whether the public /nav page should record visit statistics. */
         private Boolean enableVisitStats;
         /**
@@ -81,6 +84,9 @@ public final class NavSettings {
             copyright = trim(copyright);
             icp = trim(icp);
             gonganbei = trim(gonganbei);
+            icpIcon = trim(icpIcon);
+            gonganbeiIcon = trim(gonganbeiIcon);
+            showFooterStats = Boolean.TRUE.equals(showFooterStats);
             enableVisitStats = enableVisitStats == null || enableVisitStats;
             trustedProxyIps = normalizeList(trustedProxyIps);
             return this;
@@ -93,9 +99,14 @@ public final class NavSettings {
         private String defaultNightMode;
         private Boolean showClock;
         private Boolean showYiyan;
+        private Boolean showCategoryIcons;
+        private Boolean enableHoverPreview;
+        private String previewLoadingImage;
         /** Merged background media URL; the kind is stored in {@link #backgroundType}. */
         private String backgroundUrl;
         private String backgroundType;
+        private String randomImageApi;
+        private Boolean defaultBackgroundMedia;
         /**
          * Legacy split settings. Kept so configs written before the merge still
          * render until the first save rewrites the appearance group.
@@ -124,6 +135,11 @@ public final class NavSettings {
 
             showClock = showClock == null || showClock;
             showYiyan = showYiyan == null || showYiyan;
+            showCategoryIcons = Boolean.TRUE.equals(showCategoryIcons);
+            enableHoverPreview = Boolean.TRUE.equals(enableHoverPreview);
+            previewLoadingImage = trim(previewLoadingImage);
+            randomImageApi = trim(randomImageApi);
+            defaultBackgroundMedia = Boolean.TRUE.equals(defaultBackgroundMedia);
 
             backgroundUrl = trim(backgroundUrl);
             var type = trim(backgroundType);

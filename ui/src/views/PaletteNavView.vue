@@ -171,7 +171,7 @@ function openPreview() {
       <RiNavigationLine class="pn-page-icon" />
     </template>
     <template #actions>
-      <VButton size="sm" @click="openPreview">
+      <VButton size="sm" type="primary" @click="openPreview">
         <template #icon>
           <IconExternalLinkLine />
         </template>

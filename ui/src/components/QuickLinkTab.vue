@@ -38,6 +38,8 @@ import DragHandle from "./DragHandle.vue";
 import DragPlaceholder from "./DragPlaceholder.vue";
 import RefreshButton from "./RefreshButton.vue";
 import SelectAllCheckbox from "./SelectAllCheckbox.vue";
+import IconPicker from "./IconPicker.vue";
+import IconPreview from "./IconPreview.vue";
 import { isSafeLinkUrl } from "@/utils/icon";
 import { syncEntityVersion } from "@/utils/entity";
 import { moveItem, nextSort, sortUpdatesForOrder } from "@/utils/reorder";
@@ -110,6 +112,7 @@ const modalVisible = ref(false);
 const editing = ref<NavQuickLink | null>(null);
 const saving = ref(false);
 const formError = ref("");
+const iconValue = ref("");
 
 const instance = getCurrentInstance();
 
@@ -121,12 +124,14 @@ function submitForm() {
 }
 
 function openCreate() {
+  iconValue.value = "";
   editing.value = null;
   formError.value = "";
   modalVisible.value = true;
 }
 
 function openEdit(link: NavQuickLink) {
+  iconValue.value = link.spec.icon ?? "";
   editing.value = link;
   formError.value = "";
   modalVisible.value = true;
@@ -158,6 +163,7 @@ async function save(payload: {
       const entity = JSON.parse(JSON.stringify(editing.value)) as NavQuickLink;
       entity.spec.displayName = displayName;
       entity.spec.url = url;
+      entity.spec.icon = iconValue.value.trim();
       entity.spec.openInNewTab = openInNewTab;
       const updated = await updateEntity(QUICK_LINK_PLURAL, entity);
       syncEntityVersion(editing.value, updated);
@@ -170,6 +176,7 @@ async function save(payload: {
         metadata: { name: createName("quick") },
         spec: {
           displayName,
+          icon: iconValue.value.trim(),
           url,
           openInNewTab,
           sort: nextSort(props.quickLinks),
@@ -314,6 +321,14 @@ const { dropSlot, sourceHeight, handleProps, rowProps } = useDragSort({
               v-bind="handleProps(index)"
               :label="`拖动调整「${link.spec.displayName}」的顺序`"
             />
+            <button
+              type="button"
+              class="pn-edit-icon"
+              :aria-label="`编辑「${link.spec.displayName}」`"
+              @click="openEdit(link)"
+            >
+              <IconPreview :icon="link.spec.icon" />
+            </button>
             <VEntityField
               class="pn-edit-target"
               :title="link.spec.displayName"
@@ -397,6 +412,7 @@ const { dropSlot, sourceHeight, handleProps, rowProps } = useDragSort({
         label="新窗口打开"
         :value="editing ? editing.spec.openInNewTab !== false : true"
       />
+      <IconPicker v-model="iconValue" />
     </FormKit>
 
     <VAlert

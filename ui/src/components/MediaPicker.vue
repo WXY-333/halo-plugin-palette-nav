@@ -25,7 +25,7 @@ const props = withDefaults(
   defineProps<{
     modelValue?: string;
     type?: MediaKind;
-    kind?: "logo" | "background";
+    kind?: "logo" | "background" | "preview";
     label?: string;
     help?: string;
     emptyHint?: string;

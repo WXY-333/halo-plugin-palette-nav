@@ -19,6 +19,8 @@ import {
 import type { NavSettingsValues, StorageOption } from "@/api/settings";
 import { CONTEXT_PATH, errorMessage, isNotFound } from "@/api/nav";
 import MediaPicker from "./MediaPicker.vue";
+import IconPicker from "./IconPicker.vue";
+import { isSafeImageUrl } from "@/utils/icon";
 
 const DEFAULT_LOGO_URL = `${CONTEXT_PATH}/plugins/palette-nav/assets/nav/img/logo-default.png`;
 const DEFAULT_BACKGROUND_URL = `${CONTEXT_PATH}/plugins/palette-nav/assets/nav/img/background.jpg`;
@@ -156,6 +158,16 @@ watch(
 );
 
 async function save() {
+  const randomImageApi = settings.value.appearance.randomImageApi.trim();
+  const previewLoadingImage = settings.value.appearance.previewLoadingImage.trim();
+  if (previewLoadingImage && !isSafeImageUrl(previewLoadingImage)) {
+    Toast.error("预览加载动画请输入 http/https 或以 / 开头的图片地址");
+    return;
+  }
+  if (randomImageApi && !isSafeImageUrl(randomImageApi)) {
+    Toast.error("随机图片 API 请输入 http/https 或以 / 开头的站内图片地址");
+    return;
+  }
   if (configMissing.value) {
     Toast.error("设置配置不存在，请重启插件后重试");
     return;
@@ -302,6 +314,14 @@ function submit() {
               placeholder="京公网安备xxxxxxxxxx号"
               help="留空不显示；数字部分会自动生成查询链接。"
             />
+            <div class="pn-settings-filing-icon">
+              <p class="pn-form-block">ICP 备案图标</p>
+              <IconPicker v-model="settings.general.icpIcon" />
+            </div>
+            <div class="pn-settings-filing-icon">
+              <p class="pn-form-block">公安备案图标</p>
+              <IconPicker v-model="settings.general.gonganbeiIcon" />
+            </div>
           </div>
         </VCard>
 
@@ -310,13 +330,22 @@ function submit() {
             仪表盘数据来自 /nav 页面的访问记录；独立访客按 IP 与 User-Agent 的加盐哈希按天去重，不保存原始地址，跨天无法关联同一访客。
           </p>
           <div class="pn-settings-grid">
-            <FormKit
-              v-model="settings.general.enableVisitStats"
-              name="enableVisitStats"
-              type="switch"
-              label="启用访问统计"
-              help="关闭后不再记录新的访问，已有历史数据仍会在仪表盘展示。"
-            />
+            <div>
+              <FormKit
+                v-model="settings.general.enableVisitStats"
+                name="enableVisitStats"
+                type="switch"
+                label="启用访问统计"
+                help="关闭后不再记录新的访问，已有历史数据仍会在仪表盘展示。"
+              />
+              <FormKit
+                v-model="settings.general.showFooterStats"
+                name="showFooterStats"
+                type="switch"
+                label="在前台页脚显示访问统计"
+                help="在备案信息上方展示今日浏览量、今日访客和累计浏览量；统计关闭后仍可展示历史数据。"
+              />
+            </div>
             <FormKit
               v-model="settings.general.trustedProxyIps"
               name="trustedProxyIps"
@@ -349,27 +378,67 @@ function submit() {
               :options="NIGHT_MODES"
               help="访客手动切换后会覆盖此默认值。"
             />
-            <FormKit
-              v-model="settings.appearance.showClock"
-              name="showClock"
-              type="switch"
-              label="显示时钟与问候"
-            />
-            <FormKit
-              v-model="settings.appearance.showYiyan"
-              name="showYiyan"
-              type="switch"
-              label="显示随机一言"
-            />
-            <div class="pn-settings-wide">
-              <MediaPicker
-                v-model="settings.appearance.backgroundUrl"
-                v-model:type="settings.appearance.backgroundType"
-                kind="background"
-                label="背景媒体"
-                empty-hint="留空使用插件内置背景图"
-                :fallback-url="DEFAULT_BACKGROUND_URL"
-                help="支持图片与视频（MP4 / WebM / OGG / MOV）；可上传、从附件库选择或输入链接。首次访问只显示渐变背景，访客点击右上角背景按钮后才显示。"
+            <div class="pn-settings-wide pn-settings-switches">
+              <FormKit
+                v-model="settings.appearance.showClock"
+                name="showClock"
+                type="switch"
+                label="显示时钟与问候"
+              />
+              <FormKit
+                v-model="settings.appearance.showYiyan"
+                name="showYiyan"
+                type="switch"
+                label="显示随机一言"
+              />
+              <FormKit
+                v-model="settings.appearance.showCategoryIcons"
+                name="showCategoryIcons"
+                type="switch"
+                label="显示前端导航栏分类图标"
+                help="在前端分类导航栏的分类名称前显示对应图标。"
+              />
+              <FormKit
+                v-model="settings.appearance.enableHoverPreview"
+                name="enableHoverPreview"
+                type="switch"
+                label="开启鼠标悬停预览"
+                help="鼠标悬停链接时展示主页封面，仅在支持鼠标悬停的设备启用。"
+              />
+            </div>
+            <div class="pn-settings-wide pn-settings-background">
+              <div class="pn-settings-grid">
+                <MediaPicker
+                  v-model="settings.appearance.backgroundUrl"
+                  v-model:type="settings.appearance.backgroundType"
+                  kind="background"
+                  label="背景媒体"
+                  empty-hint="留空使用插件内置背景图"
+                  :fallback-url="DEFAULT_BACKGROUND_URL"
+                  help="支持图片与视频（MP4 / WebM / OGG / MOV）；可上传、从附件库选择或输入链接。"
+                />
+                <MediaPicker
+                  v-model="settings.appearance.previewLoadingImage"
+                  kind="preview"
+                  label="鼠标预览加载动画"
+                  empty-hint="留空使用默认加载动画"
+                  help="支持上传 GIF、从附件库选择或输入图片链接；仅在封面加载时显示。"
+                />
+              </div>
+              <FormKit
+                v-model="settings.appearance.randomImageApi"
+                name="randomImageApi"
+                type="text"
+                label="随机图片 API"
+                placeholder="https://example.com/random-image"
+                help="填写直接返回图片或重定向到图片的 API（不支持 JSON 响应）。填写后优先使用随机图片，每次进入页面重新请求；留空使用上方背景媒体。"
+              />
+              <FormKit
+                v-model="settings.appearance.defaultBackgroundMedia"
+                name="defaultBackgroundMedia"
+                type="switch"
+                label="首次访问默认显示图片背景"
+                help="开启后新访客直接显示背景，随机图片 API 优先；上方选择视频时显示视频。访客自行选择的背景模式仍会保留。"
               />
             </div>
           </div>

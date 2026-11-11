@@ -2,17 +2,24 @@ package cn.litx.palettenav.web;
 
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
-import cn.litx.palettenav.constants.NavConstants;
+import cn.litx.palettenav.config.NavSettings;
 import cn.litx.palettenav.config.NavSettingsService;
 import cn.litx.palettenav.config.NavSiteInfoService;
+import cn.litx.palettenav.constants.NavConstants;
+import cn.litx.palettenav.dto.NavDashboardStats;
 import cn.litx.palettenav.service.NavFooterSanitizer;
+import cn.litx.palettenav.service.NavIconRenderer;
 import cn.litx.palettenav.service.NavIconSpriteService;
 import cn.litx.palettenav.service.NavMediaType;
 import cn.litx.palettenav.service.NavQueryService;
+import cn.litx.palettenav.service.NavStatsService;
 import cn.litx.palettenav.service.NavUrlValidator;
 import cn.litx.palettenav.service.NavVisitRecorder;
 import cn.litx.palettenav.service.NavYiyanService;
+import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +44,8 @@ public class NavPageRouter {
 
     private final NavQueryService queryService;
     private final NavIconSpriteService iconSpriteService;
+    private final NavIconRenderer iconRenderer;
+    private final NavStatsService statsService;
     private final NavFooterSanitizer footerSanitizer;
     private final NavSettingsService settingsService;
     private final NavSiteInfoService siteInfoService;
@@ -58,12 +67,21 @@ public class NavPageRouter {
         request.exchange().getAttributes().put(ModelConst.NO_CACHE, true);
 
         return Mono.zip(
-                settingsService.get(),
+                settingsService.get().flatMap(settings -> {
+                    if (!Boolean.TRUE.equals(settings.getGeneral().getShowFooterStats())) {
+                        return Mono.just(new PageSettings(settings, null));
+                    }
+                    // Statistics are optional: a slow store must not prevent navigation.
+                    return statsService.dashboardStats()
+                        .timeout(Duration.ofSeconds(2))
+                        .map(stats -> new PageSettings(settings, stats))
+                        .onErrorReturn(new PageSettings(settings, null));
+                }),
                 siteInfoService.get(),
                 queryService.loadVisiblePageData(userAgent, contextPath)
             )
             .flatMap(tuple -> {
-                var settings = tuple.getT1();
+                var settings = tuple.getT1().settings();
                 var siteInfo = tuple.getT2();
                 var data = tuple.getT3();
                 var general = settings.getGeneral();
@@ -74,19 +92,34 @@ public class NavPageRouter {
                 model.put("categories", data.getCategories());
                 model.put("searchEngines", data.getSearchEngines());
                 model.put("quickLinks", data.getQuickLinks());
-                model.put("iconSpriteHtml", iconSpriteService.render(data.getSpriteIds()));
+                var spriteIds = new LinkedHashSet<>(data.getSpriteIds());
+                spriteIds.add(iconRenderer.spriteId(general.getIcpIcon()));
+                spriteIds.add(iconRenderer.spriteId(general.getGonganbeiIcon()));
+                model.put("iconSpriteHtml", iconSpriteService.render(spriteIds));
+                model.put("icpIconHtml", iconRenderer.render(general.getIcpIcon(), ""));
+                model.put("gonganbeiIconHtml", iconRenderer.render(general.getGonganbeiIcon(), ""));
+                model.put("footerStats", tuple.getT1().stats());
                 model.put("contextPath", contextPath);
                 model.put("pluginVersion", pluginContext.getVersion());
                 model.put("defaultColor", appearance.getDefaultColor());
                 model.put("defaultNightMode", appearance.getDefaultNightMode());
                 model.put("showClock", appearance.getShowClock());
                 model.put("showYiyan", appearance.getShowYiyan());
+                model.put("showCategoryIcons", appearance.getShowCategoryIcons());
+                model.put("enableHoverPreview", appearance.getEnableHoverPreview());
+                model.put("previewLoadingImage",
+                    NavUrlValidator.isSafeImageUrl(appearance.getPreviewLoadingImage())
+                        ? contextRelative(appearance.getPreviewLoadingImage().trim(), contextPath)
+                        : "");
                 model.put("yanText", Boolean.TRUE.equals(appearance.getShowYiyan())
                     ? yiyanService.randomQuote() : "");
                 var mergedBackground = NavUrlValidator.trim(appearance.getBackgroundUrl());
-                var videoBackground = NavMediaType.VIDEO.equals(appearance.getBackgroundType())
+                var randomBackground = randomImageUrl(appearance.getRandomImageApi());
+                var videoBackground = randomBackground.isEmpty()
+                    && NavMediaType.VIDEO.equals(appearance.getBackgroundType())
                     && NavUrlValidator.isSafeImageUrl(mergedBackground);
-                model.put("backgroundUrl", videoBackground
+                model.put("defaultBackgroundMedia", appearance.getDefaultBackgroundMedia());
+                model.put("backgroundUrl", !randomBackground.isEmpty() ? randomBackground : videoBackground
                     ? NavConstants.DEFAULT_BACKGROUND_ASSET
                     : effectiveBackground(mergedBackground));
                 model.put("backgroundVideoUrl", videoBackground
@@ -125,6 +158,23 @@ public class NavPageRouter {
                             general.getTrustedProxyIps());
                     });
             });
+    }
+
+    private record PageSettings(NavSettings.Snapshot settings,
+                                NavDashboardStats stats) {
+    }
+
+    /** A fresh URL per page bypasses browser caching on random-image endpoints. */
+    static String randomImageUrl(String configured) {
+        if (!NavUrlValidator.isSafeImageUrl(configured)) {
+            return "";
+        }
+        var url = configured.trim();
+        var fragment = url.indexOf('#');
+        if (fragment >= 0) {
+            url = url.substring(0, fragment);
+        }
+        return url + (url.contains("?") ? "&" : "?") + "_pn=" + UUID.randomUUID();
     }
 
     private String resolveLogo(String configured) {

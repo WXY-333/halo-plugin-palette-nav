@@ -22,6 +22,11 @@ class NavSettingsTest {
         assertEquals("", snapshot.getIcons().getPolicyName());
         assertEquals("", snapshot.getIcons().getGroupName());
         assertTrue(snapshot.getGeneral().getEnableVisitStats());
+        assertFalse(snapshot.getGeneral().getShowFooterStats());
+        assertFalse(snapshot.getAppearance().getDefaultBackgroundMedia());
+        assertEquals("", snapshot.getGeneral().getIcpIcon());
+        assertEquals("", snapshot.getGeneral().getGonganbeiIcon());
+        assertEquals("", snapshot.getAppearance().getRandomImageApi());
     }
 
     @Test

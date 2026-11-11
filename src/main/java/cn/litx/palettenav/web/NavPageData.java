@@ -30,6 +30,7 @@ public class NavPageData {
     @Data
     @Builder
     public static class LinkView {
+        private String coverUrl;
         private String name;
         private String displayName;
         private String url;
@@ -49,6 +50,7 @@ public class NavPageData {
     @Data
     @Builder
     public static class QuickLinkView {
+        private String iconHtml;
         private String displayName;
         private String url;
         private boolean openInNewTab;

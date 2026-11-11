@@ -112,7 +112,9 @@ public class NavQueryService {
                 ? null : link.getSpec().getVisible()))
             .filter(link -> link.getSpec() != null)
             .filter(link -> NavUrlValidator.isSafeLinkUrl(link.getSpec().getUrl()))
+            .peek(link -> addSpriteId(spriteIds, link.getSpec().getIcon()))
             .map(link -> NavPageData.QuickLinkView.builder()
+                .iconHtml(iconRenderer.render(link.getSpec().getIcon(), ""))
                 .displayName(link.getSpec().getDisplayName())
                 .url(link.getSpec().getUrl())
                 .openInNewTab(link.getSpec().getOpenInNewTab() == null
@@ -133,6 +135,8 @@ public class NavQueryService {
         var spec = link.getSpec();
         addSpriteId(spriteIds, spec.getIcon());
         return NavPageData.LinkView.builder()
+            .coverUrl(NavUrlValidator.isSafeImageUrl(spec.getCoverUrl())
+                ? spec.getCoverUrl().trim() : "")
             .name(NavEntitySupport.nameOf(link))
             .displayName(spec.getDisplayName())
             .url(spec.getUrl())

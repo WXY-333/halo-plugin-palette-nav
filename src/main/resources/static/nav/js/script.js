@@ -7,6 +7,7 @@
  * 搜索区 DOM 契约：form#search-form / input#search-input /
  * input[name="sou"][data-alias][data-hint] / localStorage['theme_sou']
  * 分类栏 DOM 契约：.category-nav > .category-scroll + .category-arrow[data-scroll-dir]
+ * 封面预览：body[data-hover-preview][data-preview-loading-image] / .link-card .link-cover-data[data-cover-url]
  */
 (function () {
     'use strict';
@@ -207,7 +208,15 @@
 
     function restoreBackground() {
         var saved = storageGet(BG_KEY);
-        // 首次访问（无保存值）不显示图片/视频背景，仅保留主题渐变
+        // 仅在没有个人偏好时应用站点默认背景。
+        if (saved === null && bodyData('defaultBackgroundMedia') === 'true') {
+            if (hasVideoBackground()) {
+                setVideoBackground();
+            } else {
+                setImageBackground();
+            }
+            return;
+        }
         if (saved === 'video') {
             if (!setVideoBackground()) {
                 clearBackground();
@@ -802,6 +811,180 @@
         }
     }
 
+    // ============ 链接主页封面预览 ============
+    // 一个共用浮层，只有鼠标停留后才请求图片，不影响触屏点击与页面初次加载。
+    function bindHoverPreview() {
+        if (bodyData('hoverPreview') !== 'true' || !window.matchMedia) {
+            return;
+        }
+        var hoverMedia = window.matchMedia('(hover: hover) and (pointer: fine)');
+        var popup = document.createElement('div');
+        popup.id = 'link-hover-preview';
+        popup.className = 'link-hover-preview';
+        popup.setAttribute('role', 'tooltip');
+        popup.setAttribute('aria-hidden', 'true');
+        var loading = document.createElement('div');
+        loading.className = 'link-preview-loading';
+        var spinner = document.createElement('span');
+        spinner.className = 'link-preview-spinner';
+        spinner.setAttribute('aria-hidden', 'true');
+        loading.appendChild(spinner);
+        var loadingUrl = bodyData('previewLoadingImage');
+        var loadingImage = document.createElement('img');
+        loadingImage.alt = '';
+        loadingImage.className = 'link-preview-loading-image';
+        loadingImage.hidden = true;
+        // 自定义动图仅在第一次实际悬停时加载；失效时回退默认动画。
+        loadingImage.onload = function () {
+            spinner.hidden = true;
+            loadingImage.hidden = false;
+        };
+        loadingImage.onerror = function () {
+            loadingImage.hidden = true;
+            spinner.hidden = false;
+        };
+        loading.appendChild(loadingImage);
+        var status = document.createElement('span');
+        loading.appendChild(status);
+        popup.appendChild(loading);
+        document.body.appendChild(popup);
+        var current = null;
+        var pending = null;
+        var delayTimer = null;
+        var timeoutTimer = null;
+        var sequence = 0;
+        var cover = null;
+
+        function close() {
+            if (!current) {
+                return;
+            }
+            sequence += 1;
+            clearTimeout(delayTimer);
+            clearTimeout(timeoutTimer);
+            if (pending) {
+                pending.onload = pending.onerror = null;
+                pending = null;
+            }
+            if (current) {
+                current.removeAttribute('aria-describedby');
+            }
+            current = null;
+            popup.classList.remove('is-visible');
+            popup.setAttribute('aria-hidden', 'true');
+        }
+
+        function place(card) {
+            var rect = card.getBoundingClientRect();
+            var width = popup.offsetWidth;
+            var height = popup.offsetHeight;
+            var left = Math.max(12, Math.min(rect.left + rect.width / 2 - width / 2,
+                window.innerWidth - width - 12));
+            var top = rect.top - height - 12;
+            if (top < 12) {
+                top = rect.bottom + 12;
+            }
+            top = Math.max(12, Math.min(top, window.innerHeight - height - 12));
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
+        }
+
+        function show(card) {
+            if (!hoverMedia.matches) {
+                return;
+            }
+            close();
+            current = card;
+            var token = sequence;
+            delayTimer = setTimeout(function () {
+                if (token !== sequence || !hoverMedia.matches) {
+                    return;
+                }
+                if (cover) {
+                    popup.removeChild(cover);
+                    cover = null;
+                }
+                popup.classList.remove('is-loaded');
+                popup.classList.remove('is-error');
+                status.textContent = '正在加载封面…';
+                spinner.hidden = false;
+                loadingImage.hidden = true;
+                var data = card.querySelector('.link-cover-data');
+                var url = data ? data.getAttribute('data-cover-url') : '';
+                if (url) {
+                    if (loadingUrl) {
+                        if (loadingImage.getAttribute('src') !== loadingUrl) {
+                            loadingImage.src = loadingUrl;
+                        } else if (loadingImage.complete && loadingImage.naturalWidth) {
+                            spinner.hidden = true;
+                            loadingImage.hidden = false;
+                        }
+                    }
+                    var image = new Image();
+                    pending = image;
+                    image.alt = (card.textContent || '').replace(/^\s+|\s+$/g, '') + ' 首页封面';
+                    image.className = 'link-preview-cover';
+                    image.decoding = 'async';
+                    function failed() {
+                        if (token !== sequence) {
+                            return;
+                        }
+                        clearTimeout(timeoutTimer);
+                        image.onload = image.onerror = null;
+                        pending = null;
+                        popup.classList.add('is-error');
+                        status.textContent = '封面加载失败，可点击链接访问网站';
+                    }
+                    image.onload = function () {
+                        if (token !== sequence) {
+                            return;
+                        }
+                        clearTimeout(timeoutTimer);
+                        pending = null;
+                        image.onload = image.onerror = null;
+                        cover = image;
+                        popup.appendChild(image);
+                        // 下一帧淡入图片，避免加载完成时突然切换。
+                        window.requestAnimationFrame(function () {
+                            if (token === sequence) {
+                                popup.classList.add('is-loaded');
+                            }
+                        });
+                    };
+                    image.onerror = failed;
+                    timeoutTimer = setTimeout(failed, 12000);
+                    image.src = url;
+                } else {
+                    popup.classList.add('is-error');
+                    status.textContent = '暂未设置主页封面';
+                }
+                place(card);
+                card.setAttribute('aria-describedby', popup.id);
+                popup.setAttribute('aria-hidden', 'false');
+                popup.classList.add('is-visible');
+            }, 180);
+        }
+
+        var cards = document.querySelectorAll('.link-card');
+        for (var i = 0; i < cards.length; i++) {
+            (function (card) {
+                card.addEventListener('mouseenter', function () { show(card); });
+                card.addEventListener('mouseleave', close);
+                card.addEventListener('focus', function () { show(card); });
+                card.addEventListener('blur', close);
+                card.addEventListener('click', close);
+            })(cards[i]);
+        }
+        // 捕获分类栏的滚动，一并关闭浮层；不拦截原生滚动。
+        window.addEventListener('scroll', close, true);
+        window.addEventListener('resize', close);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' || e.keyCode === 27) {
+                close();
+            }
+        });
+    }
+
     // ============ 下拉菜单（键盘 / 触摸可用） ============
     // 调色板与「更多」菜单原本只靠 :hover 展开，触屏和键盘都无法操作。
     // 这里统一由触发按钮切换 .open，CSS 同时保留 :hover 以维持桌面悬停体验。
@@ -885,6 +1068,7 @@
         bindSearch();
         bindCategories();
         bindCategoryScroll();
+        bindHoverPreview();
         bindDropdowns();
 
         var nightBtn = document.getElementById('nightBtn');

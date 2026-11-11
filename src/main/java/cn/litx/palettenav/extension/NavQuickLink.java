@@ -28,6 +28,8 @@ public class NavQuickLink extends AbstractExtension {
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 2048)
         private String url;
 
+        private String icon;
+
         private Boolean openInNewTab;
 
         private Integer sort;

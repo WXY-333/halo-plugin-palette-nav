@@ -38,12 +38,13 @@ import { useBulkVisibility } from "@/composables/useBulkVisibility";
 import { useDragSort } from "@/composables/useDragSort";
 import { useRowVisibility } from "@/composables/useRowVisibility";
 import { useSortDraft } from "@/composables/useSortDraft";
-import { isSafeHttpUrl, isSafeLinkUrl } from "@/utils/icon";
+import { isSafeHttpUrl, isSafeLinkUrl, isSafeImageUrl } from "@/utils/icon";
 import { syncEntityVersion } from "@/utils/entity";
 import { moveItem, nextSort, type SortUpdate } from "@/utils/reorder";
 import DragHandle from "./DragHandle.vue";
 import DragPlaceholder from "./DragPlaceholder.vue";
 import IconPicker from "./IconPicker.vue";
+import MediaPicker from "./MediaPicker.vue";
 import IconPreview from "./IconPreview.vue";
 import RefreshButton from "./RefreshButton.vue";
 import SelectAllCheckbox from "./SelectAllCheckbox.vue";
@@ -103,6 +104,7 @@ const { bulkCopying, copySelected } = useBulkCopy(
       displayName: link.spec.displayName,
       url: link.spec.url,
       icon: link.spec.icon,
+      coverUrl: link.spec.coverUrl,
       sort,
       visible: link.spec.visible !== false,
     },
@@ -293,6 +295,7 @@ const initialCategory = ref("");
 const urlValue = ref("");
 const nameValue = ref("");
 const iconValue = ref("");
+const coverUrl = ref("");
 const fetchingMeta = ref(false);
 /** Identifies the in-flight 获取 request so a late response cannot fill another form. */
 const metaRequestId = ref(0);
@@ -333,6 +336,7 @@ function openCreate() {
   urlValue.value = "";
   nameValue.value = "";
   iconValue.value = "";
+  coverUrl.value = "";
   formError.value = "";
   modalVisible.value = true;
 }
@@ -343,6 +347,7 @@ function openEdit(link: NavLink) {
   urlValue.value = link.spec.url ?? "";
   nameValue.value = link.spec.displayName ?? "";
   iconValue.value = link.spec.icon ?? "";
+  coverUrl.value = link.spec.coverUrl ?? "";
   formError.value = "";
   modalVisible.value = true;
 }
@@ -428,6 +433,11 @@ async function save(payload: {
   }
   formError.value = "";
   saving.value = true;
+  if (coverUrl.value.trim() && !isSafeImageUrl(coverUrl.value.trim())) {
+    formError.value = "主页封面请输入 http/https 或以 / 开头的图片地址";
+    saving.value = false;
+    return;
+  }
   try {
     if (editing.value) {
       const entity = JSON.parse(JSON.stringify(editing.value)) as NavLink;
@@ -436,6 +446,7 @@ async function save(payload: {
       entity.spec.displayName = displayName;
       entity.spec.url = url;
       entity.spec.icon = iconValue.value.trim();
+      entity.spec.coverUrl = coverUrl.value.trim();
       if (categoryChanged) {
         // The old sort belongs to the previous category and may collide with (or
         // jump ahead of) the target category's order. Append it instead.
@@ -462,6 +473,7 @@ async function save(payload: {
           displayName,
           url,
           icon: iconValue.value.trim(),
+          coverUrl: coverUrl.value.trim(),
           sort: nextSort(
             props.links.filter(
               (link) => link.spec.categoryName === categoryName
@@ -1165,6 +1177,14 @@ async function saveCopy(payload: { categoryName?: string }) {
     <div class="pn-form-block">
       <span class="pn-form-label">图标</span>
       <IconPicker v-model="iconValue" />
+      <div class="pn-form-block">
+        <MediaPicker
+          v-model="coverUrl"
+          label="主页封面（可选）"
+          empty-hint="留空也可以保存"
+          help="上传网站首页截图、从 Halo 附件库选择或输入图片链接，用于前端鼠标悬停预览。"
+        />
+      </div>
     </div>
 
     <VAlert

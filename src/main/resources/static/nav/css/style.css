@@ -411,6 +411,7 @@ a:hover { color: var(--accent-light); }
 .brand-logo {
     height: 32px;
     width: auto;
+    border-radius: 7px;
 }
 .brand-text {
     font-size: 1.25rem;
@@ -533,7 +534,9 @@ a:hover { color: var(--accent-light); }
 }
 
 .dropdown-link {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding: 8px 12px;
     border-radius: 10px;
     color: var(--text-primary);
@@ -968,7 +971,9 @@ a:hover { color: var(--accent-light); }
 }
 
 .category-item {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     padding: 8px 20px;
     border-radius: 12px;
     font-size: 0.9rem;
@@ -983,6 +988,20 @@ a:hover { color: var(--accent-light); }
     font-family: inherit;
     -webkit-appearance: none;
     appearance: none;
+}
+.category-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+}
+.category-nav-icon img,
+.category-nav-icon svg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
 }
 .category-item:hover {
     color: var(--accent);
@@ -1112,6 +1131,32 @@ svg.icon {
 }
 
 /* ---- Footer ---- */
+.quick-link-icon,
+.filing-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+}
+.quick-link-icon img,
+.quick-link-icon svg,
+.filing-icon img,
+.filing-icon svg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.footer-item .icp,
+.footer-item .gonganbei {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.footer-stats {
+    margin-bottom: 10px;
+}
 .site-footer {
     margin-top: auto;
     padding: 20px 0;
@@ -1251,6 +1296,113 @@ svg.icon {
 .link-group:nth-child(3) { animation-delay: 0.15s; }
 .link-group:nth-child(4) { animation-delay: 0.2s; }
 .link-group:nth-child(5) { animation-delay: 0.25s; }
+
+/* Touch devices repaint many blurred cards against a fixed background while
+   scrolling. Use more opaque surfaces instead of one blur layer per card. */
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+    body {
+        background-attachment: scroll;
+    }
+    .link-card,
+    .search-wrapper,
+    .category-scroll,
+    .category-arrow {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+    .link-card {
+        background: var(--card-hover-bg);
+        box-shadow: none;
+        transition: color 0.2s ease, background-color 0.2s ease;
+    }
+    .search-wrapper {
+        background: var(--search-focus-bg);
+    }
+    .category-scroll {
+        background: var(--dropdown-bg);
+    }
+    .link-group {
+        animation: none;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .link-card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+}
+
+/* One shared cover preview, outside card overflow and animation containers. */
+.link-hover-preview {
+    position: fixed;
+    z-index: 1000;
+    width: min(340px, calc(100vw - 24px));
+    height: min(210px, calc(100vh - 24px));
+    overflow: hidden;
+    border: 1px solid var(--accent-light);
+    border-radius: 16px;
+    background: var(--dropdown-bg);
+    color: var(--text-primary);
+    box-shadow: var(--dropdown-shadow);
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+.link-hover-preview.is-visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0);
+}
+.link-preview-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    transition: opacity 0.2s ease;
+}
+.link-preview-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--card-border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: preview-spin 0.85s linear infinite;
+}
+.link-preview-loading-image {
+    max-width: 85%;
+    max-height: 130px;
+    object-fit: contain;
+}
+.link-preview-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.link-hover-preview.is-loaded .link-preview-cover { opacity: 1; }
+.link-hover-preview.is-loaded .link-preview-loading { opacity: 0; }
+.link-hover-preview.is-error .link-preview-spinner,
+.link-hover-preview.is-error .link-preview-loading-image { display: none; }
+/* Hidden previews must not keep a loading animation running offscreen. */
+.link-hover-preview:not(.is-visible) .link-preview-spinner,
+.link-hover-preview.is-loaded .link-preview-spinner { animation: none; }
+@keyframes preview-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .link-hover-preview,
+    .link-preview-cover,
+    .link-preview-loading { transition: none; }
+    .link-preview-spinner { animation: none; }
+}
 
 /* ---- Selection ---- */
 ::selection {

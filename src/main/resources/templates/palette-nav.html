@@ -55,6 +55,9 @@
                         'url("' + bgUrl.replace(/"/g, '%22') + '")');
                 }
                 var bgSetting = localStorage.getItem('palette_bgSetting');
+                if (bgSetting === null && /*[[${defaultBackgroundMedia}]]*/ false) {
+                    bgSetting = 'image';
+                }
                 if (bgSetting === 'image' && bgUrl && !bgVideoUrl) {
                     document.documentElement.setAttribute('data-background', 'image');
                 }
@@ -79,6 +82,9 @@
               data-night-mode=${defaultNightMode},
               data-background-url=@{${backgroundUrl}},
               data-background-video-url=${backgroundVideoUrl},
+              data-default-background-media=${defaultBackgroundMedia},
+              data-hover-preview=${enableHoverPreview},
+              data-preview-loading-image=${previewLoadingImage},
               data-baidu-suggest=${baiduSuggestions}">
 <!-- 只内联当前页面实际引用到的雪碧图符号，避免加载完整 iconfont 脚本。 -->
 <div th:if="${!#strings.isEmpty(iconSpriteHtml)}" th:utext="${iconSpriteHtml}"></div>
@@ -163,9 +169,13 @@
                 </button>
                 <div class="dropdown-menu">
                     <a th:each="item : ${quickLinks}" th:href="@{${item.url}}"
-                       th:text="${item.displayName}" class="dropdown-link"
+                       class="dropdown-link"
                        th:attr="target=${item.openInNewTab} ? '_blank' : null,
-                                rel=${item.openInNewTab} ? 'noopener' : null"></a>
+                                rel=${item.openInNewTab} ? 'noopener' : null">
+                        <span class="quick-link-icon" th:if="${!#strings.isEmpty(item.iconHtml)}"
+                              th:utext="${item.iconHtml}" aria-hidden="true"></span>
+                        <span th:text="${item.displayName}"></span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -238,7 +248,11 @@
                         aria-pressed="true">全部</button>
                 <button type="button" class="category-item" th:each="category : ${categories}"
                         th:attr="data-cat=${category.name}"
-                        aria-pressed="false" th:text="${category.displayName}"></button>
+                        aria-pressed="false">
+                    <span class="category-nav-icon" th:if="${showCategoryIcons}"
+                          th:utext="${category.iconHtml}" aria-hidden="true"></span>
+                    <span th:text="${category.displayName}"></span>
+                </button>
             </div>
             <button type="button" class="category-arrow category-arrow--next"
                     data-scroll-dir="next" aria-label="向右滚动分类" title="向右滚动">
@@ -260,6 +274,8 @@
                     <div class="link-item-wrapper" th:each="link : ${category.links}">
                         <a th:href="@{${link.url}}" th:title="${link.displayName}"
                            target="_blank" rel="nofollow noopener" class="link-card">
+                            <span class="link-cover-data" hidden th:if="${!#strings.isEmpty(link.coverUrl)}"
+                                  th:attr="data-cover-url=@{${link.coverUrl}}"></span>
                             <span class="link-card-icon" th:utext="${link.iconHtml}"></span>
                             <span class="link-card-name" th:text="${link.displayName}"></span>
                         </a>
@@ -288,18 +304,31 @@
 </div>
 
 <footer class="site-footer"
-        th:if="${!#strings.isEmpty(gonganbei) or !#strings.isEmpty(icp) or !#strings.isEmpty(copyright)}">
+        th:if="${footerStats != null or !#strings.isEmpty(gonganbei) or !#strings.isEmpty(icp) or !#strings.isEmpty(copyright)}">
+    <div class="footer-content footer-stats" th:if="${footerStats != null}">
+        <span th:text="|今日浏览 ${footerStats.todayPv}|"></span>
+        <span th:text="|今日访客 ${footerStats.todayUv}|"></span>
+        <span th:text="|累计浏览 ${footerStats.totalPv}|"></span>
+    </div>
     <div class="footer-content">
         <span class="footer-item" th:if="${!#strings.isEmpty(gonganbei)}">
             <a th:if="${!#strings.isEmpty(gonganbeiCode)}" class="gonganbei"
                th:href="|http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=${gonganbeiCode}|"
-               target="_blank" rel="nofollow noopener" th:text="${gonganbei}"></a>
-            <span th:unless="${!#strings.isEmpty(gonganbeiCode)}" class="gonganbei"
-                  th:text="${gonganbei}"></span>
+               target="_blank" rel="nofollow noopener">
+                <span class="filing-icon" th:if="${!#strings.isEmpty(gonganbeiIconHtml)}" th:utext="${gonganbeiIconHtml}" aria-hidden="true"></span>
+                <span th:text="${gonganbei}"></span>
+            </a>
+            <span th:unless="${!#strings.isEmpty(gonganbeiCode)}" class="gonganbei">
+                <span class="filing-icon" th:if="${!#strings.isEmpty(gonganbeiIconHtml)}" th:utext="${gonganbeiIconHtml}" aria-hidden="true"></span>
+                <span th:text="${gonganbei}"></span>
+            </span>
         </span>
         <span class="footer-item" th:if="${!#strings.isEmpty(icp)}">
             <a class="icp" href="https://beian.miit.gov.cn/" target="_blank"
-               rel="nofollow noopener" th:text="${icp}"></a>
+               rel="nofollow noopener">
+                <span class="filing-icon" th:if="${!#strings.isEmpty(icpIconHtml)}" th:utext="${icpIconHtml}" aria-hidden="true"></span>
+                <span th:text="${icp}"></span>
+            </a>
         </span>
         <span class="footer-item" th:if="${!#strings.isEmpty(copyright)}"
               th:utext="${copyright}"></span>

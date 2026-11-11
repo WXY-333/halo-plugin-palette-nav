@@ -62,6 +62,9 @@ export interface GeneralSettings {
   copyright: string;
   icp: string;
   gonganbei: string;
+  icpIcon: string;
+  gonganbeiIcon: string;
+  showFooterStats: boolean;
   /** Whether the public /nav page records visit statistics for the dashboard. */
   enableVisitStats: boolean;
   /** Comma-separated proxy addresses allowed to set X-Forwarded-For / X-Real-IP. */
@@ -73,9 +76,14 @@ export interface AppearanceSettings {
   defaultNightMode: string;
   showClock: boolean;
   showYiyan: boolean;
+  showCategoryIcons: boolean;
+  enableHoverPreview: boolean;
+  previewLoadingImage: string;
   /** Merged background media: image or video, chosen by `backgroundType`. */
   backgroundUrl: string;
   backgroundType: MediaKind;
+  randomImageApi: string;
+  defaultBackgroundMedia: boolean;
 }
 
 export interface SearchSettings {
@@ -112,6 +120,9 @@ const DEFAULT_VALUES: NavSettingsValues = {
     copyright: "",
     icp: "",
     gonganbei: "",
+    icpIcon: "",
+    gonganbeiIcon: "",
+    showFooterStats: false,
     enableVisitStats: true,
     trustedProxyIps: "",
   },
@@ -120,8 +131,13 @@ const DEFAULT_VALUES: NavSettingsValues = {
     defaultNightMode: "auto",
     showClock: true,
     showYiyan: true,
+    showCategoryIcons: false,
+    enableHoverPreview: false,
+    previewLoadingImage: "",
     backgroundUrl: "",
     backgroundType: "image",
+    randomImageApi: "",
+    defaultBackgroundMedia: false,
   },
   search: {
     enableBaiduSuggestions: true,
@@ -230,6 +246,9 @@ export function normalizeSettings(input: unknown): NavSettingsValues {
       copyright: readString(general.copyright, DEFAULT_VALUES.general.copyright).trim(),
       icp: readString(general.icp, DEFAULT_VALUES.general.icp).trim(),
       gonganbei: readString(general.gonganbei, DEFAULT_VALUES.general.gonganbei).trim(),
+      icpIcon: readString(general.icpIcon, "").trim(),
+      gonganbeiIcon: readString(general.gonganbeiIcon, "").trim(),
+      showFooterStats: readBoolean(general.showFooterStats, false),
       enableVisitStats: readBoolean(
         general.enableVisitStats,
         DEFAULT_VALUES.general.enableVisitStats
@@ -256,8 +275,13 @@ export function normalizeSettings(input: unknown): NavSettingsValues {
         appearance.showYiyan,
         DEFAULT_VALUES.appearance.showYiyan
       ),
+      showCategoryIcons: readBoolean(appearance.showCategoryIcons, false),
+      enableHoverPreview: readBoolean(appearance.enableHoverPreview, false),
+      previewLoadingImage: readString(appearance.previewLoadingImage, "").trim(),
       backgroundUrl,
       backgroundType: resolvedBackgroundType,
+      randomImageApi: readString(appearance.randomImageApi, "").trim(),
+      defaultBackgroundMedia: readBoolean(appearance.defaultBackgroundMedia, false),
     },
     search: {
       enableBaiduSuggestions: readBoolean(
