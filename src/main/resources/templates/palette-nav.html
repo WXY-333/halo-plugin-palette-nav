@@ -335,6 +335,8 @@
                            target="_blank" rel="nofollow noopener" class="link-card">
                             <span class="link-cover-data" hidden th:if="${!#strings.isEmpty(link.coverUrl)}"
                                   th:attr="data-cover-url=@{${link.coverUrl}}"></span>
+                            <span class="link-description-data" hidden th:if="${!#strings.isEmpty(link.description)}"
+                                  th:attr="data-description=${link.description}"></span>
                             <span class="link-card-icon" th:utext="${link.iconHtml}"></span>
                             <span class="link-card-name" th:text="${link.displayName}"></span>
                         </a>

@@ -138,6 +138,7 @@ public class NavQueryService {
         return NavPageData.LinkView.builder()
             .coverUrl(NavUrlValidator.isSafeImageUrl(spec.getCoverUrl())
                 ? spec.getCoverUrl().trim() : "")
+            .description(spec.getDescription() == null ? "" : spec.getDescription().trim())
             .name(NavEntitySupport.nameOf(link))
             .displayName(spec.getDisplayName())
             .url(spec.getUrl())

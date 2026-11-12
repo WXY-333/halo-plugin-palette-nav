@@ -106,6 +106,7 @@ const { bulkCopying, copySelected } = useBulkCopy(
       url: link.spec.url,
       icon: link.spec.icon,
       coverUrl: link.spec.coverUrl,
+      description: link.spec.description,
       sort,
       visible: link.spec.visible !== false,
     },
@@ -148,7 +149,17 @@ const categoryOptions = computed(() =>
   }))
 );
 
-const filterCategory = ref("");
+const LINK_CATEGORY_STORAGE_KEY = "palette-nav-console-link-category";
+function readSavedCategory(): string {
+  try {
+    return typeof window === "undefined"
+      ? ""
+      : window.localStorage.getItem(LINK_CATEGORY_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+const filterCategory = ref(readSavedCategory());
 const keyword = ref("");
 const page = ref(1);
 const pageSize = ref(20);
@@ -255,6 +266,14 @@ watch([filterCategory, keyword, pageSize], () => {
   page.value = 1;
 });
 
+watch(filterCategory, (value) => {
+  try {
+    if (value) window.localStorage.setItem(LINK_CATEGORY_STORAGE_KEY, value);
+  } catch {
+    // Storage may be unavailable in private browsing; filtering still works.
+  }
+});
+
 // The selection survives filtering and paging only by accident: the toolbar
 // keeps showing "已选 N 项" while those rows are no longer visible, so a bulk
 // action would touch rows the admin cannot see. Drop the selection whenever the
@@ -297,6 +316,7 @@ const urlValue = ref("");
 const nameValue = ref("");
 const iconValue = ref("");
 const coverUrl = ref("");
+const descriptionValue = ref("");
 const showLinkCoverField = ref(false);
 let coverSettingRevision = 0;
 async function loadCoverFieldSetting() {
@@ -358,6 +378,7 @@ function openCreate() {
   nameValue.value = "";
   iconValue.value = "";
   coverUrl.value = "";
+  descriptionValue.value = "";
   formError.value = "";
   modalVisible.value = true;
 }
@@ -370,6 +391,7 @@ function openEdit(link: NavLink) {
   nameValue.value = link.spec.displayName ?? "";
   iconValue.value = link.spec.icon ?? "";
   coverUrl.value = link.spec.coverUrl ?? "";
+  descriptionValue.value = link.spec.description ?? "";
   formError.value = "";
   modalVisible.value = true;
 }
@@ -473,6 +495,7 @@ async function save(payload: {
       entity.spec.url = url;
       entity.spec.icon = iconValue.value.trim();
       entity.spec.coverUrl = coverUrl.value.trim();
+      entity.spec.description = descriptionValue.value.trim();
       if (categoryChanged) {
         // The old sort belongs to the previous category and may collide with (or
         // jump ahead of) the target category's order. Append it instead.
@@ -500,6 +523,7 @@ async function save(payload: {
           url,
           icon: iconValue.value.trim(),
           coverUrl: coverUrl.value.trim(),
+          description: descriptionValue.value.trim(),
           sort: nextSort(
             props.links.filter(
               (link) => link.spec.categoryName === categoryName
@@ -1197,6 +1221,15 @@ async function saveCopy(payload: { categoryName?: string }) {
         placeholder="例如：豆包，或点击网址右侧「获取」自动填写"
         validation="required"
         validation-label="名称"
+      />
+      <FormKit
+        v-model="descriptionValue"
+        name="description"
+        type="textarea"
+        label="简介"
+        placeholder="可选，鼠标悬停时显示"
+        :rows="3"
+        maxlength="2000"
       />
     </FormKit>
 

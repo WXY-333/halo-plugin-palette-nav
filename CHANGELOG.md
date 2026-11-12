@@ -4,6 +4,10 @@
 
 ## 1.0.2 - 2026-11-11
 
+- Link management remembers the last selected category when returning to the page.
+- Added an optional link description field; descriptions are preserved with links and shown in hover previews, with or without a homepage cover.
+- Moved the description field below the link name and made description-only hover notices compact; hover previews remain controlled by the existing hover-preview switch.
+
 - 视频背景兼容：电脑和手机均优先尝试播放配置的视频；自动播放被浏览器拒绝时立即保留主题色，播放无响应时最多等待 900 毫秒再保留主题色，不再切换到默认图片。用户可通过背景按钮重新尝试播放，不调用微信桥接接口。图片模式优先使用随机 API，加载期间显示主题色；API 失败时依次回退到所选图片和默认图片。切换背景时清理计时器、交互监听及过期回调。
 
 - 背景更新：随机图片 API 缓存支持 0–86400 秒，0 表示每次刷新重新请求；修正壁纸复用 512KB 图标大小限制导致加载失败的问题，背景图片单独限制为 10MB。保留访客手动关闭背景的偏好。

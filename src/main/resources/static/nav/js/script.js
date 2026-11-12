@@ -1046,6 +1046,10 @@
         var status = document.createElement('span');
         loading.appendChild(status);
         popup.appendChild(loading);
+        var description = document.createElement('div');
+        description.className = 'link-preview-description';
+        description.hidden = true;
+        popup.appendChild(description);
         document.body.appendChild(popup);
         var current = null;
         var pending = null;
@@ -1069,6 +1073,7 @@
                 current.removeAttribute('aria-describedby');
             }
             current = null;
+            popup.classList.remove('is-description-only');
             popup.classList.remove('is-visible');
             popup.setAttribute('aria-hidden', 'true');
         }
@@ -1094,7 +1099,12 @@
             }
             close();
             var coverData = card.querySelector('.link-cover-data');
-            if (!coverData || !trimText(coverData.getAttribute('data-cover-url'))) {
+            var descriptionData = card.querySelector('.link-description-data');
+            var coverUrl = coverData && trimText(coverData.getAttribute('data-cover-url'));
+            var descriptionText = descriptionData
+                ? trimText(descriptionData.getAttribute('data-description'))
+                : '';
+            if (!coverUrl && !descriptionText) {
                 return;
             }
             current = card;
@@ -1107,14 +1117,18 @@
                     popup.removeChild(cover);
                     cover = null;
                 }
+                description.textContent = descriptionText;
+                description.hidden = !descriptionText;
                 popup.classList.remove('is-loaded');
                 popup.classList.remove('is-error');
                 status.textContent = '正在加载封面…';
                 spinner.hidden = false;
+                loading.hidden = false;
                 loadingImage.hidden = true;
                 loading.classList.remove('has-image');
                 var data = card.querySelector('.link-cover-data');
-                var url = data ? data.getAttribute('data-cover-url') : '';
+                var url = data ? trimText(data.getAttribute('data-cover-url')) : '';
+                popup.classList.toggle('is-description-only', !url && !!descriptionText);
                 if (url) {
                     if (loadingUrl) {
                         if (loadingImage.getAttribute('src') !== loadingUrl) {
@@ -1161,8 +1175,8 @@
                     timeoutTimer = setTimeout(failed, 12000);
                     image.src = url;
                 } else {
-                    close();
-                    return;
+                    loading.hidden = true;
+                    popup.classList.add('is-loaded');
                 }
                 place(card);
                 card.setAttribute('aria-describedby', popup.id);

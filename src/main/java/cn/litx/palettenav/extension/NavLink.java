@@ -37,6 +37,9 @@ public class NavLink extends AbstractExtension {
         @Schema(maxLength = 2048, description = "Optional homepage cover image URL")
         private String coverUrl;
 
+        @Schema(maxLength = 2000, description = "Optional link description shown in hover preview")
+        private String description;
+
         private Integer sort;
 
         private Boolean visible;

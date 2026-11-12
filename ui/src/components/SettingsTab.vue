@@ -570,7 +570,7 @@ function submit() {
                 name="enableHoverPreview"
                 type="switch"
                 label="开启鼠标悬停预览"
-                help="鼠标悬停链接时展示主页封面，仅在支持鼠标悬停的设备启用。"
+                help="鼠标悬停链接时展示主页封面或简介，仅在支持鼠标悬停的设备启用。"
               />
               <FormKit
                 v-model="settings.appearance.showLinkCoverField"

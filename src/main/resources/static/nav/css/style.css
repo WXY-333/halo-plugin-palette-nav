@@ -1403,6 +1403,42 @@ svg.icon {
 }
 .link-hover-preview.is-loaded .link-preview-cover { opacity: 1; }
 .link-hover-preview.is-loaded .link-preview-loading { opacity: 0; }
+.link-preview-description {
+    position: absolute;
+    z-index: 2;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    max-height: 72px;
+    overflow: auto;
+    padding: 7px 9px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.62);
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.link-hover-preview.is-description-only {
+    width: min(280px, calc(100vw - 24px));
+    height: auto;
+    overflow: visible;
+}
+.link-hover-preview.is-description-only .link-preview-description {
+    position: static;
+    max-height: 120px;
+    margin: 0;
+    border-radius: 12px;
+    background: var(--dropdown-bg);
+    color: var(--text-primary);
+    box-shadow: none;
+}
+.link-hover-preview.is-error .link-preview-description,
+.link-hover-preview:not(.is-loaded) .link-preview-description {
+    background: var(--dropdown-bg);
+    color: var(--text-primary);
+}
 .link-hover-preview.is-error .link-preview-spinner,
 .link-hover-preview.is-error .link-preview-loading-image { display: none; }
 /* Hidden previews must not keep a loading animation running offscreen. */

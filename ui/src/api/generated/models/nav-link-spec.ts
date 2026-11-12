@@ -32,6 +32,8 @@ export interface NavLinkSpec {
      * @memberof NavLinkSpec
      */
     'coverUrl'?: string;
+    /** Optional link description shown in hover preview */
+    'description'?: string;
     /**
      *
      * @type {string}

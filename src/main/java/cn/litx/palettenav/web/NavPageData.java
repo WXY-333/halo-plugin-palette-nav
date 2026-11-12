@@ -31,6 +31,7 @@ public class NavPageData {
     @Builder
     public static class LinkView {
         private String coverUrl;
+        private String description;
         private String name;
         private String displayName;
         private String url;
