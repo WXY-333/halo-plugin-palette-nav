@@ -1107,6 +1107,25 @@
             if (!coverUrl && !descriptionText) {
                 return;
             }
+            if (!coverUrl) {
+                current = card;
+                description.textContent = descriptionText;
+                description.hidden = false;
+                description.classList.remove('is-marquee');
+                popup.classList.add('is-description-only');
+                popup.classList.remove('is-loaded');
+                popup.classList.remove('is-error');
+                loading.hidden = true;
+                popup.setAttribute('aria-hidden', 'false');
+                popup.classList.add('is-visible');
+                place(card);
+                window.requestAnimationFrame(function () {
+                    if (current === card && description.scrollWidth > description.clientWidth) {
+                        description.classList.add('is-marquee');
+                    }
+                });
+                return;
+            }
             current = card;
             var token = sequence;
             delayTimer = setTimeout(function () {
@@ -1128,7 +1147,6 @@
                 loading.classList.remove('has-image');
                 var data = card.querySelector('.link-cover-data');
                 var url = data ? trimText(data.getAttribute('data-cover-url')) : '';
-                popup.classList.toggle('is-description-only', !url && !!descriptionText);
                 if (url) {
                     if (loadingUrl) {
                         if (loadingImage.getAttribute('src') !== loadingUrl) {
