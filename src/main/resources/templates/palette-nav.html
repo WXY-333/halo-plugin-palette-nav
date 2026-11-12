@@ -81,6 +81,8 @@
 <body th:attr="data-default-color=${defaultColor},
               data-night-mode=${defaultNightMode},
               data-background-url=@{${backgroundUrl}},
+              data-background-resolver=${randomBackgroundResolver},
+              data-background-fallback=@{${backgroundFallback}},
               data-background-video-url=${backgroundVideoUrl},
               data-default-background-media=${defaultBackgroundMedia},
               data-hover-preview=${enableHoverPreview},

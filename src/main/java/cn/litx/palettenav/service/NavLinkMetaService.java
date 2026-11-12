@@ -1,6 +1,7 @@
 package cn.litx.palettenav.service;
 
 import cn.litx.palettenav.dto.NavLinkMeta;
+import cn.litx.palettenav.dto.NavBackgroundTestResult;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
@@ -34,6 +35,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Reads a public web page to derive a human readable name and icon URL.
@@ -191,6 +194,93 @@ public class NavLinkMetaService {
     }
 
     /* ----------------------------- HTTP ----------------------------- */
+
+    public Mono<NavBackgroundTestResult> testBackgroundImage(String url) {
+        if (!NavUrlValidator.isSafeHttpUrl(url)) {
+            return Mono.just(new NavBackgroundTestResult(false, "", "", "请输入合法的 http(s) API 地址"));
+        }
+        var uri = URI.create(url);
+        return resolveTarget(uri)
+            .flatMap(addresses -> fetch(uri, addresses, MAX_REDIRECTS,
+                "*/*", "Background test", (finalUri, response) -> {
+                    var bytes = decode(response);
+                    if (describeAsset(bytes) != null) {
+                        return new NavBackgroundTestResult(true, "image", finalUri.toString(),
+                            "接口返回图片，正在验证浏览器加载");
+                    }
+                    if (bytes.length >= MAX_BYTES) {
+                        return new NavBackgroundTestResult(false, "", "", "响应超过 512 KB，且未识别为图片");
+                    }
+                    try {
+                        var image = extractBackgroundImage(JsonMapper.shared().readTree(bytes), finalUri, 0);
+                        return new NavBackgroundTestResult(image != null, "json", image == null ? "" : image,
+                            image == null ? "JSON 响应中未找到可用的图片地址，请检查 url、imgurl、image 或 data 等字段"
+                                : "JSON 图片地址解析成功，正在验证浏览器加载");
+                    } catch (RuntimeException error) {
+                        return new NavBackgroundTestResult(false, "", "", "响应既不是可识别的图片，也不是有效 JSON");
+                    }
+                }))
+            .timeout(TOTAL_TIMEOUT)
+            .onErrorResume(IllegalArgumentException.class, error -> Mono.just(
+                new NavBackgroundTestResult(false, "", "", "为保护服务器，JSON 解析仅支持公网 http(s) 接口")))
+            .onErrorResume(error -> Mono.empty())
+            .defaultIfEmpty(new NavBackgroundTestResult(false, "", "",
+                "接口请求失败，请检查网络、超时、TLS 证书、HTTP 状态或重定向目标"));
+    }
+
+    /** Read JSON using the same DNS, redirect, size and timeout guards as metadata. */
+    public Mono<String> fetchBackgroundImage(String url) {
+        if (!NavUrlValidator.isSafeHttpUrl(url)) {
+            return Mono.empty();
+        }
+        var uri = URI.create(url);
+        return resolveTarget(uri)
+            .flatMap(addresses -> fetch(uri, addresses, MAX_REDIRECTS,
+                "application/json,*/*;q=0.5", "Background", (finalUri, response) -> {
+                    var bytes = decode(response);
+                    if (bytes.length == 0 || bytes.length >= MAX_BYTES) {
+                        return null;
+                    }
+                    return extractBackgroundImage(JsonMapper.shared().readTree(bytes),
+                        finalUri, 0);
+                }))
+            .timeout(TOTAL_TIMEOUT)
+            .onErrorResume(error -> Mono.empty());
+    }
+
+    static String extractBackgroundImage(JsonNode node, URI base, int depth) {
+        if (node == null || depth > 12) {
+            return null;
+        }
+        if (node.isString()) {
+            var value = node.asString().trim();
+            // Only explicit URLs and site-relative paths; never mistake status text for a path.
+            if (!NavUrlValidator.isSafeImageUrl(value)) {
+                return null;
+            }
+            var resolved = base.resolve(value).toString();
+            return NavUrlValidator.isSafeHttpUrl(resolved) ? resolved : null;
+        }
+        if (node.isObject()) {
+            // Prefer image fields over unrelated API links and metadata.
+            for (var key : List.of("url", "imgurl", "imgUrl", "imageUrl", "image_url",
+                "pic", "picurl", "picUrl", "image", "src", "download_url",
+                "data", "images", "urls", "result", "results", "list")) {
+                var found = extractBackgroundImage(node.get(key), base, depth + 1);
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node.isArray()) {
+            for (var item : node) {
+                var found = extractBackgroundImage(item, base, depth + 1);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
 
     private Mono<PageMeta> fetchPage(URI uri, List<InetAddress> addresses, int redirectsLeft) {
         return fetch(uri, addresses, redirectsLeft, HTML_ACCEPT, "Metadata",

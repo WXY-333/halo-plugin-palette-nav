@@ -10,6 +10,9 @@ metadata:
     rbac.authorization.halo.run/ui-permissions: |
       ["plugin:palette-nav:manage"]
 rules:
+  - apiGroups: ["console.api.palette-nav.halo.run"]
+    resources: ["background-test"]
+    verbs: ["create"]
   - apiGroups: ["palette-nav.halo.run"]
     resources: ["navcategories", "navlinks", "navsearchengines", "navquicklinks"]
     verbs: ["get", "list", "create", "update", "delete", "patch"]

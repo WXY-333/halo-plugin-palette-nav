@@ -8,6 +8,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import cn.litx.palettenav.constants.NavConstants;
 import cn.litx.palettenav.dto.NavDashboardStats;
 import cn.litx.palettenav.dto.NavLinkMeta;
+import cn.litx.palettenav.dto.NavBackgroundTestResult;
 import cn.litx.palettenav.dto.NavLinkMetaRequest;
 import cn.litx.palettenav.dto.OkResult;
 import cn.litx.palettenav.dto.ReorderRequest;
@@ -69,6 +70,12 @@ public class NavConsoleEndpoint implements CustomEndpoint {
     @Override
     public RouterFunction<ServerResponse> endpoint() {
         return SpringdocRouteBuilder.route()
+            .POST("/background-test", this::testBackground, builder -> builder
+                .operationId("TestPaletteNavBackground")
+                .tag(TAG)
+                .description("Test a public random image API, including JSON responses")
+                .requestBody(requestBodyBuilder().required(true).implementation(NavLinkMetaRequest.class))
+                .response(responseBuilder().responseCode("200").implementation(NavBackgroundTestResult.class)))
             .POST("/reorder", this::reorder, builder -> builder
                 .operationId("ReorderPaletteNavData")
                 .tag(TAG)
@@ -146,6 +153,17 @@ public class NavConsoleEndpoint implements CustomEndpoint {
     @Override
     public GroupVersion groupVersion() {
         return new GroupVersion(NavConstants.CONSOLE_API_GROUP, NavConstants.API_VERSION);
+    }
+
+    private Mono<ServerResponse> testBackground(ServerRequest request) {
+        return readJsonBody(request, NavLinkMetaRequest.class, MAX_LINK_META_BYTES, "API 地址不能为空")
+            .flatMap(body -> metaService.testBackgroundImage(body.url()))
+            .flatMap(result -> ServerResponse.ok().contentType(APPLICATION_JSON)
+                .cacheControl(CacheControl.noStore()).bodyValue(result))
+            .onErrorResume(DataBufferLimitException.class,
+                error -> error(HttpStatus.CONTENT_TOO_LARGE, "请求内容过大"))
+            .onErrorResume(IllegalArgumentException.class,
+                error -> error(HttpStatus.BAD_REQUEST, "API 地址不合法"));
     }
 
     private Mono<ServerResponse> reorder(ServerRequest request) {

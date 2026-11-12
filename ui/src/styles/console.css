@@ -1113,3 +1113,51 @@ body.pn-dragging * {
     font-size: 22px;
   }
 }
+.pn-page .pn-background-api-test {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pn-page .pn-background-api-test > :first-child {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.pn-page .pn-background-api-test > :last-child {
+  flex-shrink: 0;
+  align-self: stretch;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+}
+
+.pn-page .pn-background-api-test .formkit-wrapper,
+.pn-page .pn-background-api-test .formkit-inner {
+  height: 40px;
+  min-height: 40px;
+}
+
+.pn-page .pn-background-api-test .formkit-input {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+}
+
+.pn-page #pn-random-image-api-help {
+  margin-top: 8px;
+}
+
+.pn-page .pn-background-api-feedback {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--pn-text-muted);
+}
+
+.pn-page .pn-background-api-feedback.is-success {
+  color: #16a34a;
+}
+

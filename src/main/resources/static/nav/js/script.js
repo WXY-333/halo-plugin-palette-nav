@@ -137,6 +137,51 @@
 
     // ============ 背景切换 ============
     var bgLayer = document.querySelector('.bg-layer');
+    var resolvedBackground = '';
+    var backgroundChecked = false;
+
+    function applyResolvedBackground(url) {
+        resolvedBackground = url;
+        // A late response must respect a visitor who has since disabled the background.
+        if (document.documentElement.getAttribute('data-background') === 'image' && bgLayer) {
+            bgLayer.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+            document.documentElement.style.setProperty('--pn-bg-image',
+                'url("' + url.replace(/"/g, '%22') + '")');
+        }
+    }
+
+    function checkRandomBackground() {
+        var resolver = bodyData('backgroundResolver');
+        if (backgroundChecked || !resolver) return;
+        backgroundChecked = true;
+        var probe = new Image();
+        var settled = false;
+        var timer = window.setTimeout(resolveJson, 10000);
+        probe.onload = function () {
+            settled = true;
+            window.clearTimeout(timer);
+        };
+        function resolveJson() {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timer);
+            applyResolvedBackground(bodyData('backgroundFallback'));
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', resolver + '?_pn=' + new Date().getTime(), true);
+            xhr.timeout = 15000;
+            xhr.onload = function () {
+                var url = trimText(xhr.responseText);
+                if (xhr.status !== 200 || !/^(https?:\/\/|\/(?!\/))/i.test(url)
+                    || /[\\\x00-\x1f\x7f]/.test(url)) return;
+                var image = new Image();
+                image.onload = function () { applyResolvedBackground(url); };
+                image.src = url;
+            };
+            xhr.send();
+        }
+        probe.onerror = resolveJson;
+        probe.src = bodyData('backgroundUrl');
+    }
 
     function removeVideoBackground() {
         var videos = document.querySelectorAll('body > video');
@@ -148,7 +193,7 @@
     }
 
     function setImageBackground() {
-        var url = bodyData('backgroundUrl');
+        var url = resolvedBackground || bodyData('backgroundUrl');
         if (!bgLayer || !url) {
             return false;
         }
@@ -159,6 +204,7 @@
         document.documentElement.setAttribute('data-background', 'image');
         bgLayer.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
         removeVideoBackground();
+        checkRandomBackground();
         return true;
     }
 

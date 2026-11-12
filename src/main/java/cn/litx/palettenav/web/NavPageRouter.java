@@ -11,6 +11,7 @@ import cn.litx.palettenav.service.NavFooterSanitizer;
 import cn.litx.palettenav.service.NavIconRenderer;
 import cn.litx.palettenav.service.NavIconSpriteService;
 import cn.litx.palettenav.service.NavMediaType;
+import cn.litx.palettenav.service.NavLinkMetaService;
 import cn.litx.palettenav.service.NavQueryService;
 import cn.litx.palettenav.service.NavStatsService;
 import cn.litx.palettenav.service.NavUrlValidator;
@@ -52,13 +53,31 @@ public class NavPageRouter {
     private final NavYiyanService yiyanService;
     private final NavVisitRecorder visitRecorder;
     private final PluginContext pluginContext;
+    private final NavLinkMetaService linkMetaService;
 
     @Bean
     RouterFunction<ServerResponse> paletteNavPageRoute() {
         return route()
             .GET("/nav", this::render)
             .GET("/nav/", this::render)
+            .GET("/nav/background", this::backgroundImage)
             .build();
+    }
+
+    private Mono<ServerResponse> backgroundImage(ServerRequest request) {
+        return settingsService.get().flatMap(settings -> {
+            var appearance = settings.getAppearance();
+            var fallback = NavMediaType.VIDEO.equals(appearance.getBackgroundType())
+                ? NavConstants.DEFAULT_BACKGROUND_ASSET
+                : effectiveBackground(appearance.getBackgroundUrl());
+            var contextPath = request.exchange().getRequest().getPath().contextPath().value();
+            return linkMetaService.fetchBackgroundImage(randomImageUrl(appearance.getRandomImageApi()))
+                .defaultIfEmpty(contextRelative(fallback, contextPath))
+                .flatMap(url -> ServerResponse.ok().cacheControl(CacheControl.noStore())
+                    .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
+                    .header("X-Content-Type-Options", "nosniff")
+                    .bodyValue(url));
+        });
     }
 
     private Mono<ServerResponse> render(ServerRequest request) {
@@ -119,6 +138,10 @@ public class NavPageRouter {
                     && NavMediaType.VIDEO.equals(appearance.getBackgroundType())
                     && NavUrlValidator.isSafeImageUrl(mergedBackground);
                 model.put("defaultBackgroundMedia", appearance.getDefaultBackgroundMedia());
+                model.put("randomBackgroundResolver", randomBackground.isEmpty() ? ""
+                    : contextPath + "/nav/background");
+                model.put("backgroundFallback", NavMediaType.VIDEO.equals(appearance.getBackgroundType())
+                    ? NavConstants.DEFAULT_BACKGROUND_ASSET : effectiveBackground(mergedBackground));
                 model.put("backgroundUrl", !randomBackground.isEmpty() ? randomBackground : videoBackground
                     ? NavConstants.DEFAULT_BACKGROUND_ASSET
                     : effectiveBackground(mergedBackground));

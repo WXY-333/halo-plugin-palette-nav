@@ -3,6 +3,7 @@ export * from './copy-operation';
 export * from './json-patch-inner';
 export * from './metadata';
 export * from './move-operation';
+export * from './nav-background-test-result';
 export * from './nav-category';
 export * from './nav-category-list';
 export * from './nav-category-spec';

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { computed, getCurrentInstance, onMounted, ref, watch } from "vue";
+import { computed, getCurrentInstance, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   Toast,
   VAlert,
@@ -17,7 +17,7 @@ import {
   saveNavSettings,
 } from "@/api/settings";
 import type { NavSettingsValues, StorageOption } from "@/api/settings";
-import { CONTEXT_PATH, errorMessage, isNotFound } from "@/api/nav";
+import { CONTEXT_PATH, errorMessage, isNotFound, testBackgroundApi } from "@/api/nav";
 import MediaPicker from "./MediaPicker.vue";
 import IconPicker from "./IconPicker.vue";
 import { isSafeImageUrl } from "@/utils/icon";
@@ -35,6 +35,86 @@ const loading = ref(true);
 const loadError = ref("");
 const saving = ref(false);
 const dirty = ref(false);
+const testingBackground = ref(false);
+const backgroundTestMessage = ref("");
+const backgroundTestSuccess = ref(false);
+let backgroundMessageTimer: number | undefined;
+let backgroundMessageRevision = 0;
+
+function clearBackgroundTestMessage() {
+  window.clearTimeout(backgroundMessageTimer);
+  backgroundTestMessage.value = "";
+  backgroundMessageRevision += 1;
+}
+
+function expireBackgroundTestMessage() {
+  window.clearTimeout(backgroundMessageTimer);
+  backgroundMessageTimer = window.setTimeout(clearBackgroundTestMessage, 4000);
+}
+
+onUnmounted(clearBackgroundTestMessage);
+
+function canLoadImage(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    const done = (success: boolean) => {
+      window.clearTimeout(timer);
+      image.onload = null;
+      image.onerror = null;
+      resolve(success);
+    };
+    const timer = window.setTimeout(() => done(false), 10000);
+    image.onload = () => done(true);
+    image.onerror = () => done(false);
+    image.src = url;
+  });
+}
+
+async function testRandomBackground() {
+  clearBackgroundTestMessage();
+  const messageRevision = backgroundMessageRevision;
+  const url = settings.value.appearance.randomImageApi.trim();
+  if (!url || !isSafeImageUrl(url)) {
+    backgroundTestSuccess.value = false;
+    backgroundTestMessage.value = "请先填写合法的 API 地址";
+    expireBackgroundTestMessage();
+    return;
+  }
+  testingBackground.value = true;
+  backgroundTestMessage.value = "正在连接接口并验证图片加载…";
+  backgroundTestSuccess.value = false;
+  try {
+    const directUrl = url.startsWith("/") ? `${CONTEXT_PATH}${url}` : url;
+    const separator = directUrl.includes("?") ? "&" : "?";
+    if (await canLoadImage(`${directUrl.split("#")[0]}${separator}_pn=${Date.now()}`)) {
+      backgroundTestSuccess.value = true;
+      backgroundTestMessage.value = "连接成功：接口直接返回图片或重定向到图片，浏览器加载正常";
+    } else {
+      const result = await testBackgroundApi(url);
+      if (result.success && result.url) {
+        backgroundTestSuccess.value = await canLoadImage(result.url);
+        backgroundTestMessage.value = backgroundTestSuccess.value
+          ? `连接成功：${result.type === "json" ? "JSON 图片地址解析成功" : "已识别图片响应"}，浏览器加载正常`
+          : "接口已返回图片地址，但浏览器加载失败或超时，请检查图片地址、防盗链或 HTTPS 限制";
+      } else {
+        backgroundTestMessage.value = result.message || "未能获取可用图片，请检查接口响应";
+      }
+    }
+  } catch (error) {
+    backgroundTestMessage.value = errorMessage(error) || "测试失败，请检查网络连接或管理权限";
+  } finally {
+    testingBackground.value = false;
+    if (settings.value.appearance.randomImageApi.trim() !== url) {
+      backgroundTestSuccess.value = false;
+      backgroundTestMessage.value = "地址已修改，请重新测试";
+    }
+    if (messageRevision !== backgroundMessageRevision) {
+      backgroundTestMessage.value = "";
+    } else {
+      expireBackgroundTestMessage();
+    }
+  }
+}
 /**
  * A missing ConfigMap is recreated by the plugin on its next start. The manage
  * role cannot create ConfigMaps, so until then the page must not pretend the
@@ -158,6 +238,7 @@ watch(
 );
 
 async function save() {
+  clearBackgroundTestMessage();
   const randomImageApi = settings.value.appearance.randomImageApi.trim();
   const previewLoadingImage = settings.value.appearance.previewLoadingImage.trim();
   if (previewLoadingImage && !isSafeImageUrl(previewLoadingImage)) {
@@ -425,14 +506,26 @@ function submit() {
                   help="支持上传 GIF、从附件库选择或输入图片链接；仅在封面加载时显示。"
                 />
               </div>
+              <div>
+              <label class="formkit-label" for="pn-random-image-api">随机图片 API</label>
+              <div class="pn-background-api-test">
               <FormKit
+                id="pn-random-image-api"
                 v-model="settings.appearance.randomImageApi"
                 name="randomImageApi"
                 type="text"
-                label="随机图片 API"
                 placeholder="https://example.com/random-image"
-                help="填写直接返回图片或重定向到图片的 API（不支持 JSON 响应）。填写后优先使用随机图片，每次进入页面重新请求；留空使用上方背景媒体。"
+                aria-describedby="pn-random-image-api-help"
               />
+              <VButton :loading="testingBackground" :disabled="testingBackground" @click="testRandomBackground">
+                测试连接
+              </VButton>
+              </div>
+              <p id="pn-random-image-api-help" class="formkit-help">支持直接返回图片、重定向或 JSON。自动读取 url、imgurl、image 等字段及 data 内嵌对象或数组；JSON 公网接口由后端解析，无需开放跨域。失败时回退背景图片。</p>
+              </div>
+              <p v-if="backgroundTestMessage" class="pn-background-api-feedback" :class="{ 'is-success': backgroundTestSuccess }" role="status" aria-live="polite">
+                {{ backgroundTestMessage }}
+              </p>
               <FormKit
                 v-model="settings.appearance.defaultBackgroundMedia"
                 name="defaultBackgroundMedia"

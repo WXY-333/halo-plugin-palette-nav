@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { NavBackgroundTestResult } from '../models';
+// @ts-ignore
 import type { NavDashboardStats } from '../models';
 // @ts-ignore
 import type { NavLinkMeta } from '../models';
@@ -201,6 +203,49 @@ export const NavConsoleV1alpha1ApiAxiosParamCreator = function (configuration?: 
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * Test a public random image API, including JSON responses
+         * @param {NavLinkMetaRequest} navLinkMetaRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        testPaletteNavBackground: async (navLinkMetaRequest: NavLinkMetaRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'navLinkMetaRequest' is not null or undefined
+            assertParamExists('testPaletteNavBackground', 'navLinkMetaRequest', navLinkMetaRequest)
+            const localVarPath = `/apis/console.api.palette-nav.halo.run/v1alpha1/background-test`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication basicAuth required
+            // http basic authentication required
+            setBasicAuthToObject(localVarRequestOptions, configuration)
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(navLinkMetaRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -258,6 +303,18 @@ export const NavConsoleV1alpha1ApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['NavConsoleV1alpha1Api.reorderPaletteNavData']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * Test a public random image API, including JSON responses
+         * @param {NavLinkMetaRequest} navLinkMetaRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async testPaletteNavBackground(navLinkMetaRequest: NavLinkMetaRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NavBackgroundTestResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.testPaletteNavBackground(navLinkMetaRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['NavConsoleV1alpha1Api.testPaletteNavBackground']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -303,6 +360,15 @@ export const NavConsoleV1alpha1ApiFactory = function (configuration?: Configurat
         reorderPaletteNavData(requestParameters: NavConsoleV1alpha1ApiReorderPaletteNavDataRequest, options?: RawAxiosRequestConfig): AxiosPromise<NavOkResult> {
             return localVarFp.reorderPaletteNavData(requestParameters.navReorderRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         * Test a public random image API, including JSON responses
+         * @param {NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        testPaletteNavBackground(requestParameters: NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest, options?: RawAxiosRequestConfig): AxiosPromise<NavBackgroundTestResult> {
+            return localVarFp.testPaletteNavBackground(requestParameters.navLinkMetaRequest, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -346,6 +412,20 @@ export interface NavConsoleV1alpha1ApiReorderPaletteNavDataRequest {
      * @memberof NavConsoleV1alpha1ApiReorderPaletteNavData
      */
     readonly navReorderRequest: NavReorderRequest
+}
+
+/**
+ * Request parameters for testPaletteNavBackground operation in NavConsoleV1alpha1Api.
+ * @export
+ * @interface NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest
+ */
+export interface NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest {
+    /**
+     * 
+     * @type {NavLinkMetaRequest}
+     * @memberof NavConsoleV1alpha1ApiTestPaletteNavBackground
+     */
+    readonly navLinkMetaRequest: NavLinkMetaRequest
 }
 
 /**
@@ -396,6 +476,17 @@ export class NavConsoleV1alpha1Api extends BaseAPI {
      */
     public reorderPaletteNavData(requestParameters: NavConsoleV1alpha1ApiReorderPaletteNavDataRequest, options?: RawAxiosRequestConfig) {
         return NavConsoleV1alpha1ApiFp(this.configuration).reorderPaletteNavData(requestParameters.navReorderRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Test a public random image API, including JSON responses
+     * @param {NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof NavConsoleV1alpha1Api
+     */
+    public testPaletteNavBackground(requestParameters: NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest, options?: RawAxiosRequestConfig) {
+        return NavConsoleV1alpha1ApiFp(this.configuration).testPaletteNavBackground(requestParameters.navLinkMetaRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

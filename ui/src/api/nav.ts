@@ -44,6 +44,9 @@ const engineApi = new NavSearchEngineV1alpha1Api(undefined, "", axiosInstance);
 const quickLinkApi = new NavQuickLinkV1alpha1Api(undefined, "", axiosInstance);
 const consoleApi = new NavConsoleV1alpha1Api(undefined, "", axiosInstance);
 
+export const testBackgroundApi = async (url: string) =>
+  (await consoleApi.testPaletteNavBackground({ navLinkMetaRequest: { url } }, SILENT_REQUEST)).data;
+
 async function listAll<T>(
   fetchPage: (page: number) => Promise<{ items: T[]; hasNext: boolean }>
 ): Promise<T[]> {
