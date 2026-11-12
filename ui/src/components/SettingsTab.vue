@@ -44,6 +44,9 @@ let backgroundMessageRevision = 0;
 function clearBackgroundTestMessage() {
   window.clearTimeout(backgroundMessageTimer);
   backgroundTestMessage.value = "";
+  backgroundPreviewUrl.value = "";
+  backgroundCandidates.value = [];
+  backgroundResponse.value = "";
   backgroundMessageRevision += 1;
 }
 
@@ -70,49 +73,96 @@ function canLoadImage(url: string): Promise<boolean> {
   });
 }
 
+const backgroundCandidates = ref<Array<{ path: string; url: string }>>([]);
+const backgroundResponse = ref("");
+const backgroundPreviewUrl = ref("");
+const backgroundDetectedType = ref("");
+const manualBackgroundPath = ref(false);
+let backgroundRequestRevision = 0;
+
+async function selectBackgroundField(event: Event) {
+  settings.value.appearance.randomImageJsonPath = (event.target as HTMLSelectElement).value;
+  await testRandomBackground();
+}
+
 async function testRandomBackground() {
+  const requestRevision = ++backgroundRequestRevision;
   clearBackgroundTestMessage();
   const messageRevision = backgroundMessageRevision;
   const url = settings.value.appearance.randomImageApi.trim();
+  let expectedPath = settings.value.appearance.randomImageJsonPath.trim();
+  const current = () => requestRevision === backgroundRequestRevision
+    && messageRevision === backgroundMessageRevision
+    && settings.value.appearance.randomImageApi.trim() === url
+    && settings.value.appearance.randomImageJsonPath.trim() === expectedPath;
+  backgroundPreviewUrl.value = "";
+  backgroundTestSuccess.value = false;
   if (!url || !isSafeImageUrl(url)) {
-    backgroundTestSuccess.value = false;
-    backgroundTestMessage.value = "请先填写合法的 API 地址";
+    backgroundTestMessage.value = "请先填写随机图片 API 的接口网址，再点击测试连接";
+    expireBackgroundTestMessage();
+    return;
+  }
+  if (/^https?:\/\//i.test(expectedPath)) {
+    manualBackgroundPath.value = true;
+    backgroundTestMessage.value = "字段路径不是网址，请填写 url、data.url 等路径，或清空后测试以自动识别";
     expireBackgroundTestMessage();
     return;
   }
   testingBackground.value = true;
-  backgroundTestMessage.value = "正在连接接口并验证图片加载…";
-  backgroundTestSuccess.value = false;
+  backgroundTestMessage.value = "正在识别接口返回内容…";
   try {
-    const directUrl = url.startsWith("/") ? `${CONTEXT_PATH}${url}` : url;
-    const separator = directUrl.includes("?") ? "&" : "?";
-    if (await canLoadImage(`${directUrl.split("#")[0]}${separator}_pn=${Date.now()}`)) {
-      backgroundTestSuccess.value = true;
-      backgroundTestMessage.value = "连接成功：接口直接返回图片或重定向到图片，浏览器加载正常";
-    } else {
-      const result = await testBackgroundApi(url);
-      if (result.success && result.url) {
-        backgroundTestSuccess.value = await canLoadImage(result.url);
-        backgroundTestMessage.value = backgroundTestSuccess.value
-          ? `连接成功：${result.type === "json" ? "JSON 图片地址解析成功" : "已识别图片响应"}，浏览器加载正常`
-          : "接口已返回图片地址，但浏览器加载失败或超时，请检查图片地址、防盗链或 HTTPS 限制";
+    if (url.startsWith("/")) {
+      const directUrl = `${CONTEXT_PATH}${url}`;
+      const loaded = await canLoadImage(directUrl);
+      if (!current()) return;
+      if (loaded) {
+        expectedPath = "";
+        settings.value.appearance.randomImageJsonPath = "";
+        backgroundDetectedType.value = "image";
+        backgroundCandidates.value = [];
+        backgroundResponse.value = "";
+        backgroundPreviewUrl.value = directUrl;
+        backgroundTestSuccess.value = true;
+        backgroundTestMessage.value = "接口直接返回图片，预览成功，保存设置后生效";
       } else {
-        backgroundTestMessage.value = result.message || "未能获取可用图片，请检查接口响应";
+        backgroundTestMessage.value = "站内图片加载失败；JSON 接口请填写完整的公网 http(s) 网址";
       }
+      return;
+    }
+    const result = await testBackgroundApi(url, expectedPath);
+    if (!current()) return;
+    backgroundDetectedType.value = result.type || "";
+    backgroundCandidates.value = (result.candidates || []).flatMap(candidate =>
+      candidate.path && candidate.url ? [{ path: candidate.path, url: candidate.url }] : []);
+    backgroundResponse.value = result.jsonPreview || "";
+    if (result.type === "image") {
+      expectedPath = "";
+      settings.value.appearance.randomImageJsonPath = "";
+      manualBackgroundPath.value = false;
+    } else if (result.type === "json") {
+      if (result.jsonPath) {
+        expectedPath = result.jsonPath;
+        settings.value.appearance.randomImageJsonPath = expectedPath;
+      }
+      if (!backgroundCandidates.value.length) manualBackgroundPath.value = true;
+    }
+    if (result.success && result.url) {
+      backgroundTestMessage.value = "已识别图片地址，正在验证图片加载…";
+      const loaded = await canLoadImage(result.url);
+      if (!current()) return;
+      backgroundTestSuccess.value = loaded;
+      backgroundPreviewUrl.value = loaded ? result.url : "";
+      backgroundTestMessage.value = loaded
+        ? `${result.type === "json" ? `已选择字段 ${expectedPath}` : "接口直接返回图片"}，预览成功，保存设置后生效`
+        : "已识别图片地址，但图片加载失败或超时，请检查防盗链、HTTPS 限制或选择其他字段";
+    } else {
+      backgroundTestMessage.value = result.message || "未找到可用图片，请检查接口返回内容";
     }
   } catch (error) {
-    backgroundTestMessage.value = errorMessage(error) || "测试失败，请检查网络连接或管理权限";
+    if (current()) backgroundTestMessage.value = errorMessage(error) || "测试失败，请检查网络连接或管理权限";
   } finally {
-    testingBackground.value = false;
-    if (settings.value.appearance.randomImageApi.trim() !== url) {
-      backgroundTestSuccess.value = false;
-      backgroundTestMessage.value = "地址已修改，请重新测试";
-    }
-    if (messageRevision !== backgroundMessageRevision) {
-      backgroundTestMessage.value = "";
-    } else {
-      expireBackgroundTestMessage();
-    }
+    if (requestRevision === backgroundRequestRevision) testingBackground.value = false;
+    if (current()) expireBackgroundTestMessage();
   }
 }
 /**
@@ -131,6 +181,22 @@ const configMissing = ref(false);
  * events on the wrapping form.
  */
 const settings = ref<NavSettingsValues>(normalizeSettings(null));
+watch(() => settings.value.appearance.randomImageApi, () => {
+  if (loading.value) return;
+  backgroundRequestRevision += 1;
+  testingBackground.value = false;
+  clearBackgroundTestMessage();
+  backgroundCandidates.value = [];
+  backgroundResponse.value = "";
+  backgroundPreviewUrl.value = "";
+  backgroundDetectedType.value = "";
+  manualBackgroundPath.value = false;
+  settings.value.appearance.randomImageJsonPath = "";
+}, { flush: "sync" });
+watch(() => settings.value.appearance.randomImageJsonPath, () => {
+  backgroundPreviewUrl.value = "";
+  backgroundTestSuccess.value = false;
+}, { flush: "sync" });
 const savedSnapshot = ref(JSON.stringify(settings.value));
 const instance = getCurrentInstance();
 
@@ -239,7 +305,18 @@ watch(
 
 async function save() {
   clearBackgroundTestMessage();
+  const cacheSeconds = Number(settings.value.appearance.randomImageCacheSeconds);
+  if (!Number.isInteger(cacheSeconds) || cacheSeconds < 1 || cacheSeconds > 86400) {
+    Toast.warning("API 缓存时长请填写 1–86400 之间的整数秒数");
+    return;
+  }
+  settings.value.appearance.randomImageCacheSeconds = cacheSeconds;
   const randomImageApi = settings.value.appearance.randomImageApi.trim();
+  if (randomImageApi && backgroundDetectedType.value === "json"
+    && !settings.value.appearance.randomImageJsonPath.trim()) {
+    Toast.warning("此接口返回 JSON，请先选择图片地址字段，或展开高级配置手动填写字段路径");
+    return;
+  }
   const previewLoadingImage = settings.value.appearance.previewLoadingImage.trim();
   if (previewLoadingImage && !isSafeImageUrl(previewLoadingImage)) {
     Toast.error("预览加载动画请输入 http/https 或以 / 开头的图片地址");
@@ -364,6 +441,7 @@ function submit() {
               placeholder="导航,上网导航,常用网站"
               help="输出到 meta keywords，多个关键词用英文逗号分隔。"
             />
+            <div class="pn-settings-logo-row">
             <MediaPicker
               v-model="settings.general.logoUrl"
               kind="logo"
@@ -372,6 +450,14 @@ function submit() {
               :fallback-url="DEFAULT_LOGO_URL"
               help="支持上传图片、从附件库选择，或输入 https:// 与 /upload/... 地址。"
             />
+            <FormKit
+              v-model="settings.appearance.roundedLogo"
+              name="roundedLogo"
+              type="switch"
+              label="LOGO 圆角"
+              help="开启后同步为页面 LOGO 和 favicon 添加圆角。"
+            />
+            </div>
             <FormKit
               v-model="settings.general.copyright"
               name="copyright"
@@ -486,6 +572,13 @@ function submit() {
                 label="开启鼠标悬停预览"
                 help="鼠标悬停链接时展示主页封面，仅在支持鼠标悬停的设备启用。"
               />
+              <FormKit
+                v-model="settings.appearance.showLinkCoverField"
+                name="showLinkCoverField"
+                type="switch"
+                label="链接新增/编辑页面显示主页封面"
+                help="开启后在链接新增和编辑弹窗显示主页封面配置；关闭不清空已有封面。"
+              />
             </div>
             <div class="pn-settings-wide pn-settings-background">
               <div class="pn-settings-grid">
@@ -496,7 +589,7 @@ function submit() {
                   label="背景媒体"
                   empty-hint="留空使用插件内置背景图"
                   :fallback-url="DEFAULT_BACKGROUND_URL"
-                  help="支持图片与视频（MP4 / WebM / OGG / MOV）；可上传、从附件库选择或输入链接。"
+                  help="支持图片与视频（MP4 / WebM / OGG / MOV）；可上传、从附件库选择或直接输入随机图片地址。返回 JSON 的接口请使用下方随机图片 API 并配置字段路径。"
                 />
                 <MediaPicker
                   v-model="settings.appearance.previewLoadingImage"
@@ -521,8 +614,66 @@ function submit() {
                 测试连接
               </VButton>
               </div>
-              <p id="pn-random-image-api-help" class="formkit-help">支持直接返回图片、重定向或 JSON。自动读取 url、imgurl、image 等字段及 data 内嵌对象或数组；JSON 公网接口由后端解析，无需开放跨域。失败时回退背景图片。</p>
+              <p id="pn-random-image-api-help" class="formkit-help">填写随机图片接口网址，支持直接返回图片或 JSON。点击「测试连接」自动识别返回内容、选择图片地址并预览，确认后保存设置。</p>
               </div>
+              <div v-if="backgroundDetectedType === 'json' || settings.appearance.randomImageJsonPath" class="pn-background-result">
+                <p class="formkit-help">{{ backgroundCandidates.length ? '接口返回 JSON，请确认用作背景的图片地址字段。' : settings.appearance.randomImageJsonPath ? '已配置 JSON 图片字段，点击测试连接可重新识别和预览。' : '尚未选择图片字段，点击测试连接重新识别，或手动填写字段路径。' }}</p>
+                <template v-if="backgroundCandidates.length">
+                  <label class="formkit-label" for="pn-background-field">图片地址字段</label>
+                  <select
+                    id="pn-background-field"
+                    class="pn-background-field-select"
+                    :value="settings.appearance.randomImageJsonPath"
+                    :disabled="testingBackground"
+                    @change="selectBackgroundField"
+                  >
+                    <option value="" disabled>请选择图片地址字段</option>
+                    <option
+                      v-if="settings.appearance.randomImageJsonPath && !backgroundCandidates.some(candidate => candidate.path === settings.appearance.randomImageJsonPath)"
+                      :value="settings.appearance.randomImageJsonPath"
+                    >手动路径：{{ settings.appearance.randomImageJsonPath }}</option>
+                    <option v-for="candidate in backgroundCandidates" :key="candidate.path" :value="candidate.path">
+                      {{ candidate.path }} — {{ candidate.url }}
+                    </option>
+                  </select>
+                  <p class="formkit-help">只有一个候选字段时会自动选中；切换字段后自动验证图片，保存设置后生效。</p>
+                </template>
+                <p v-else-if="settings.appearance.randomImageJsonPath" class="formkit-help">当前图片字段：{{ settings.appearance.randomImageJsonPath }}</p>
+              </div>
+              <div v-if="backgroundPreviewUrl" class="pn-background-preview">
+                <span class="formkit-label">图片预览</span>
+                <img :src="backgroundPreviewUrl" alt="随机背景图片预览" />
+                <p class="formkit-help">图片加载成功，保存设置后生效。随机接口的实际背景图片可能与本次预览不同。</p>
+              </div>
+              <div>
+                <div class="pn-background-options-row">
+                <VButton class="pn-background-manual-toggle" @click="manualBackgroundPath = !manualBackgroundPath">
+                  {{ manualBackgroundPath ? '收起手动配置' : '手动填写字段路径（高级）' }}
+                </VButton>
+                <label class="pn-background-cache" for="pn-background-cache-seconds">
+                  <span>API 缓存时长（秒）</span>
+                  <input id="pn-background-cache-seconds" v-model.number="settings.appearance.randomImageCacheSeconds"
+                    type="number" min="1" max="86400" step="1" required
+                    title="默认 60 秒，可填 1–86400 秒；适用于图片直返和 JSON 接口" />
+                </label>
+                </div>
+                <p class="formkit-help">缓存适用于公网随机图片 API，包括图片直返和 JSON 接口。默认 60 秒，可填 1–86400 秒；缓存期间共用同一张图片，时间越短，第三方接口请求越频繁。</p>
+                <div v-if="manualBackgroundPath" class="pn-background-manual">
+                  <FormKit
+                    id="pn-random-image-json-path"
+                    v-model="settings.appearance.randomImageJsonPath"
+                    name="randomImageJsonPath"
+                    type="text"
+                    label="JSON 图片字段路径"
+                    placeholder="例如 url 或 data[0].url"
+                    help="这里填字段路径，不是接口网址。例如返回 {&quot;url&quot;:&quot;图片地址&quot;} 时填 url；$ 表示响应本身是图片地址字符串。修改后点击上方「测试连接」验证，留空重新自动识别。"
+                  />
+                </div>
+              </div>
+              <details v-if="backgroundResponse" class="pn-background-response">
+                <summary>查看接口返回内容（JSON）</summary>
+                <pre>{{ backgroundResponse }}</pre>
+              </details>
               <p v-if="backgroundTestMessage" class="pn-background-api-feedback" :class="{ 'is-success': backgroundTestSuccess }" role="status" aria-live="polite">
                 {{ backgroundTestMessage }}
               </p>

@@ -94,7 +94,8 @@ public class NavQueryService {
             categoryViews.add(NavPageData.CategoryView.builder()
                 .name(categoryName)
                 .displayName(category.getSpec().getDisplayName())
-                .iconHtml(iconRenderer.render(category.getSpec().getIcon(), ""))
+                .iconHtml(NavUrlValidator.trim(category.getSpec().getIcon()).isEmpty()
+                    ? "" : iconRenderer.render(category.getSpec().getIcon(), ""))
                 .links(linkViews)
                 .build());
         }

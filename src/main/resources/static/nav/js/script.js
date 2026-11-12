@@ -154,33 +154,18 @@
         var resolver = bodyData('backgroundResolver');
         if (backgroundChecked || !resolver) return;
         backgroundChecked = true;
-        var probe = new Image();
-        var settled = false;
-        var timer = window.setTimeout(resolveJson, 10000);
-        probe.onload = function () {
-            settled = true;
-            window.clearTimeout(timer);
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', resolver, true);
+        xhr.timeout = 15000;
+        xhr.onload = function () {
+            var url = trimText(xhr.responseText);
+            if (xhr.status !== 200 || !/^(https?:\/\/|\/(?!\/))/i.test(url)
+                || /[\\\x00-\x1f\x7f]/.test(url)) return;
+            var image = new Image();
+            image.onload = function () { applyResolvedBackground(url); };
+            image.src = url;
         };
-        function resolveJson() {
-            if (settled) return;
-            settled = true;
-            window.clearTimeout(timer);
-            applyResolvedBackground(bodyData('backgroundFallback'));
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', resolver + '?_pn=' + new Date().getTime(), true);
-            xhr.timeout = 15000;
-            xhr.onload = function () {
-                var url = trimText(xhr.responseText);
-                if (xhr.status !== 200 || !/^(https?:\/\/|\/(?!\/))/i.test(url)
-                    || /[\\\x00-\x1f\x7f]/.test(url)) return;
-                var image = new Image();
-                image.onload = function () { applyResolvedBackground(url); };
-                image.src = url;
-            };
-            xhr.send();
-        }
-        probe.onerror = resolveJson;
-        probe.src = bodyData('backgroundUrl');
+        xhr.send();
     }
 
     function removeVideoBackground() {
@@ -1125,6 +1110,7 @@
         bindCategoryScroll();
         bindHoverPreview();
         bindDropdowns();
+        bindPageScrollControls();
 
         var nightBtn = document.getElementById('nightBtn');
         if (nightBtn) {
@@ -1174,6 +1160,25 @@
                 }
             }, 300);
         }
+    }
+
+    function bindPageScrollControls() {
+        var controls = document.querySelector('.page-scroll-controls');
+        if (!controls) return;
+        controls.addEventListener('click', function (event) {
+            var button = event.target.closest('[data-scroll-edge]');
+            if (!button || !controls.contains(button)) return;
+            var root = document.documentElement;
+            var height = Math.max(root.scrollHeight, document.body.scrollHeight);
+            var top = button.getAttribute('data-scroll-edge') === 'top' ? 0 : height;
+            var reduceMotion = window.matchMedia
+                && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if ('scrollBehavior' in root.style && !reduceMotion) {
+                window.scrollTo({ top: top, behavior: 'smooth' });
+            } else {
+                window.scrollTo(0, top);
+            }
+        });
     }
 
     if (document.readyState === 'loading') {

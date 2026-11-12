@@ -24,9 +24,13 @@ class NavSettingsTest {
         assertTrue(snapshot.getGeneral().getEnableVisitStats());
         assertFalse(snapshot.getGeneral().getShowFooterStats());
         assertFalse(snapshot.getAppearance().getDefaultBackgroundMedia());
+        assertFalse(snapshot.getAppearance().getShowLinkCoverField());
+        assertFalse(snapshot.getAppearance().getRoundedLogo());
         assertEquals("", snapshot.getGeneral().getIcpIcon());
         assertEquals("", snapshot.getGeneral().getGonganbeiIcon());
+        assertEquals(60, snapshot.getAppearance().getRandomImageCacheSeconds());
         assertEquals("", snapshot.getAppearance().getRandomImageApi());
+        assertEquals("", snapshot.getAppearance().getRandomImageJsonPath());
     }
 
     @Test

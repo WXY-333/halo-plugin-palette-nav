@@ -13,6 +13,9 @@
  */
 
 
+// May contain unused imports in some cases
+// @ts-ignore
+import type { NavBackgroundCandidate } from './nav-background-candidate';
 
 /**
  * Random background API test result
@@ -20,6 +23,24 @@
  * @interface NavBackgroundTestResult
  */
 export interface NavBackgroundTestResult {
+    /**
+     * 
+     * @type {Array<NavBackgroundCandidate>}
+     * @memberof NavBackgroundTestResult
+     */
+    'candidates'?: Array<NavBackgroundCandidate>;
+    /**
+     * 
+     * @type {string}
+     * @memberof NavBackgroundTestResult
+     */
+    'jsonPath'?: string;
+    /**
+     * 
+     * @type {string}
+     * @memberof NavBackgroundTestResult
+     */
+    'jsonPreview'?: string;
     /**
      * 
      * @type {string}

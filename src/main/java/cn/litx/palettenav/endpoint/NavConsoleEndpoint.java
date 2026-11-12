@@ -9,6 +9,7 @@ import cn.litx.palettenav.constants.NavConstants;
 import cn.litx.palettenav.dto.NavDashboardStats;
 import cn.litx.palettenav.dto.NavLinkMeta;
 import cn.litx.palettenav.dto.NavBackgroundTestResult;
+import cn.litx.palettenav.dto.NavBackgroundTestRequest;
 import cn.litx.palettenav.dto.NavLinkMetaRequest;
 import cn.litx.palettenav.dto.OkResult;
 import cn.litx.palettenav.dto.ReorderRequest;
@@ -74,7 +75,7 @@ public class NavConsoleEndpoint implements CustomEndpoint {
                 .operationId("TestPaletteNavBackground")
                 .tag(TAG)
                 .description("Test a public random image API, including JSON responses")
-                .requestBody(requestBodyBuilder().required(true).implementation(NavLinkMetaRequest.class))
+                .requestBody(requestBodyBuilder().required(true).implementation(NavBackgroundTestRequest.class))
                 .response(responseBuilder().responseCode("200").implementation(NavBackgroundTestResult.class)))
             .POST("/reorder", this::reorder, builder -> builder
                 .operationId("ReorderPaletteNavData")
@@ -156,8 +157,8 @@ public class NavConsoleEndpoint implements CustomEndpoint {
     }
 
     private Mono<ServerResponse> testBackground(ServerRequest request) {
-        return readJsonBody(request, NavLinkMetaRequest.class, MAX_LINK_META_BYTES, "API 地址不能为空")
-            .flatMap(body -> metaService.testBackgroundImage(body.url()))
+        return readJsonBody(request, NavBackgroundTestRequest.class, MAX_LINK_META_BYTES, "API 地址不能为空")
+            .flatMap(body -> metaService.testBackgroundImage(body.url(), body.jsonPath()))
             .flatMap(result -> ServerResponse.ok().contentType(APPLICATION_JSON)
                 .cacheControl(CacheControl.noStore()).bodyValue(result))
             .onErrorResume(DataBufferLimitException.class,

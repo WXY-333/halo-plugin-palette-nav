@@ -22,6 +22,8 @@ import { DUMMY_BASE_URL, assertParamExists, setApiKeyToObject, setBasicAuthToObj
 // @ts-ignore
 import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError, operationServerMap } from '../base';
 // @ts-ignore
+import type { NavBackgroundTestRequest } from '../models';
+// @ts-ignore
 import type { NavBackgroundTestResult } from '../models';
 // @ts-ignore
 import type { NavDashboardStats } from '../models';
@@ -205,13 +207,13 @@ export const NavConsoleV1alpha1ApiAxiosParamCreator = function (configuration?: 
         },
         /**
          * Test a public random image API, including JSON responses
-         * @param {NavLinkMetaRequest} navLinkMetaRequest 
+         * @param {NavBackgroundTestRequest} navBackgroundTestRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        testPaletteNavBackground: async (navLinkMetaRequest: NavLinkMetaRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'navLinkMetaRequest' is not null or undefined
-            assertParamExists('testPaletteNavBackground', 'navLinkMetaRequest', navLinkMetaRequest)
+        testPaletteNavBackground: async (navBackgroundTestRequest: NavBackgroundTestRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'navBackgroundTestRequest' is not null or undefined
+            assertParamExists('testPaletteNavBackground', 'navBackgroundTestRequest', navBackgroundTestRequest)
             const localVarPath = `/apis/console.api.palette-nav.halo.run/v1alpha1/background-test`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -239,7 +241,7 @@ export const NavConsoleV1alpha1ApiAxiosParamCreator = function (configuration?: 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
             localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(navLinkMetaRequest, localVarRequestOptions, configuration)
+            localVarRequestOptions.data = serializeDataIfNeeded(navBackgroundTestRequest, localVarRequestOptions, configuration)
 
             return {
                 url: toPathString(localVarUrlObj),
@@ -305,12 +307,12 @@ export const NavConsoleV1alpha1ApiFp = function(configuration?: Configuration) {
         },
         /**
          * Test a public random image API, including JSON responses
-         * @param {NavLinkMetaRequest} navLinkMetaRequest 
+         * @param {NavBackgroundTestRequest} navBackgroundTestRequest 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async testPaletteNavBackground(navLinkMetaRequest: NavLinkMetaRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NavBackgroundTestResult>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.testPaletteNavBackground(navLinkMetaRequest, options);
+        async testPaletteNavBackground(navBackgroundTestRequest: NavBackgroundTestRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<NavBackgroundTestResult>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.testPaletteNavBackground(navBackgroundTestRequest, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['NavConsoleV1alpha1Api.testPaletteNavBackground']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -367,7 +369,7 @@ export const NavConsoleV1alpha1ApiFactory = function (configuration?: Configurat
          * @throws {RequiredError}
          */
         testPaletteNavBackground(requestParameters: NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest, options?: RawAxiosRequestConfig): AxiosPromise<NavBackgroundTestResult> {
-            return localVarFp.testPaletteNavBackground(requestParameters.navLinkMetaRequest, options).then((request) => request(axios, basePath));
+            return localVarFp.testPaletteNavBackground(requestParameters.navBackgroundTestRequest, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -422,10 +424,10 @@ export interface NavConsoleV1alpha1ApiReorderPaletteNavDataRequest {
 export interface NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest {
     /**
      * 
-     * @type {NavLinkMetaRequest}
+     * @type {NavBackgroundTestRequest}
      * @memberof NavConsoleV1alpha1ApiTestPaletteNavBackground
      */
-    readonly navLinkMetaRequest: NavLinkMetaRequest
+    readonly navBackgroundTestRequest: NavBackgroundTestRequest
 }
 
 /**
@@ -486,7 +488,7 @@ export class NavConsoleV1alpha1Api extends BaseAPI {
      * @memberof NavConsoleV1alpha1Api
      */
     public testPaletteNavBackground(requestParameters: NavConsoleV1alpha1ApiTestPaletteNavBackgroundRequest, options?: RawAxiosRequestConfig) {
-        return NavConsoleV1alpha1ApiFp(this.configuration).testPaletteNavBackground(requestParameters.navLinkMetaRequest, options).then((request) => request(this.axios, this.basePath));
+        return NavConsoleV1alpha1ApiFp(this.configuration).testPaletteNavBackground(requestParameters.navBackgroundTestRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

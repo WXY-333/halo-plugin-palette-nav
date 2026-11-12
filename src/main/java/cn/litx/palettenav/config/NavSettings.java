@@ -101,11 +101,15 @@ public final class NavSettings {
         private Boolean showYiyan;
         private Boolean showCategoryIcons;
         private Boolean enableHoverPreview;
+        private Boolean showLinkCoverField;
+        private Boolean roundedLogo;
         private String previewLoadingImage;
         /** Merged background media URL; the kind is stored in {@link #backgroundType}. */
         private String backgroundUrl;
         private String backgroundType;
         private String randomImageApi;
+        private String randomImageJsonPath;
+        private Integer randomImageCacheSeconds;
         private Boolean defaultBackgroundMedia;
         /**
          * Legacy split settings. Kept so configs written before the merge still
@@ -137,8 +141,13 @@ public final class NavSettings {
             showYiyan = showYiyan == null || showYiyan;
             showCategoryIcons = Boolean.TRUE.equals(showCategoryIcons);
             enableHoverPreview = Boolean.TRUE.equals(enableHoverPreview);
+            showLinkCoverField = Boolean.TRUE.equals(showLinkCoverField);
+            roundedLogo = Boolean.TRUE.equals(roundedLogo);
             previewLoadingImage = trim(previewLoadingImage);
             randomImageApi = trim(randomImageApi);
+            randomImageJsonPath = trim(randomImageJsonPath);
+            randomImageCacheSeconds = randomImageCacheSeconds == null ? 60
+                : Math.max(1, Math.min(86400, randomImageCacheSeconds));
             defaultBackgroundMedia = Boolean.TRUE.equals(defaultBackgroundMedia);
 
             backgroundUrl = trim(backgroundUrl);

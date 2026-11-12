@@ -195,7 +195,57 @@ public class NavLinkMetaService {
 
     /* ----------------------------- HTTP ----------------------------- */
 
+    /** Logo SVGs are served only as sandboxed images, never as inline page markup. */
+    public Mono<FetchedAsset> fetchLogoAsset(String url) {
+        if (!NavUrlValidator.isSafeHttpUrl(url)) return Mono.empty();
+        var uri = URI.create(url);
+        return resolveTarget(uri).flatMap(addresses -> fetch(uri, addresses, MAX_REDIRECTS,
+            ICON_ACCEPT, "Logo", (ignored, response) -> {
+                var bytes = decode(response);
+                if (bytes.length == 0 || bytes.length >= MAX_BYTES) return null;
+                var raster = describeAsset(bytes);
+                if (raster != null) return raster;
+                var document = org.jsoup.Jsoup.parse(new String(bytes, StandardCharsets.UTF_8),
+                    "", org.jsoup.parser.Parser.xmlParser());
+                var root = document.children().first();
+                return root != null && "svg".equals(root.tagName())
+                    ? new FetchedAsset(bytes, "svg", "image/svg+xml") : null;
+            })).timeout(TOTAL_TIMEOUT).onErrorResume(error -> Mono.empty());
+    }
+
+    private final java.util.concurrent.Semaphore backgroundSlots = new java.util.concurrent.Semaphore(2);
+
+    public Mono<FetchedAsset> fetchBackgroundAsset(String url) {
+        return limitBackgroundRequest(() -> fetchLogoAsset(url));
+    }
+
+    private <T> Mono<T> limitBackgroundRequest(java.util.function.Supplier<Mono<T>> request) {
+        return Mono.defer(() -> {
+            if (!backgroundSlots.tryAcquire()) return Mono.empty();
+            return Mono.defer(request).doFinally(signal -> backgroundSlots.release());
+        });
+    }
+
+    /** Reject unresolvable, private and reserved image hosts as well as unsafe schemes. */
+    Mono<String> publicBackgroundUrl(String url) {
+        if (!NavUrlValidator.isSafeHttpUrl(url)) return Mono.empty();
+        var uri = URI.create(url);
+        return resolveTarget(uri)
+            .flatMap(addresses -> fetch(uri, addresses, MAX_REDIRECTS, ICON_ACCEPT,
+                "Background image target", (finalUri, response) -> finalUri.toString()))
+            .timeout(REQUEST_TIMEOUT).onErrorResume(error -> Mono.empty());
+    }
+
     public Mono<NavBackgroundTestResult> testBackgroundImage(String url) {
+        return testBackgroundImage(url, "url");
+    }
+
+    public Mono<NavBackgroundTestResult> testBackgroundImage(String url, String jsonPath) {
+        return limitBackgroundRequest(() -> testBackgroundImageUncached(url, jsonPath))
+            .defaultIfEmpty(new NavBackgroundTestResult(false, "", "", "测试请求繁忙，请稍后重试"));
+    }
+
+    private Mono<NavBackgroundTestResult> testBackgroundImageUncached(String url, String jsonPath) {
         if (!NavUrlValidator.isSafeHttpUrl(url)) {
             return Mono.just(new NavBackgroundTestResult(false, "", "", "请输入合法的 http(s) API 地址"));
         }
@@ -212,14 +262,18 @@ public class NavLinkMetaService {
                         return new NavBackgroundTestResult(false, "", "", "响应超过 512 KB，且未识别为图片");
                     }
                     try {
-                        var image = extractBackgroundImage(JsonMapper.shared().readTree(bytes), finalUri, 0);
+                        var root = JsonMapper.shared().readTree(bytes);
+                        var candidates = discoverBackgroundImages(root, finalUri);
+                        var preview = root.toPrettyString();
+                        if (preview.length() > 8192) preview = preview.substring(0, 8192) + "\n…（内容已截断）";
+                        var image = extractBackgroundImage(root, finalUri, jsonPath);
                         return new NavBackgroundTestResult(image != null, "json", image == null ? "" : image,
-                            image == null ? "JSON 响应中未找到可用的图片地址，请检查 url、imgurl、image 或 data 等字段"
-                                : "JSON 图片地址解析成功，正在验证浏览器加载");
+                            "JSON response", candidates, preview, jsonPath == null ? "" : jsonPath.trim());
                     } catch (RuntimeException error) {
                         return new NavBackgroundTestResult(false, "", "", "响应既不是可识别的图片，也不是有效 JSON");
                     }
                 }))
+            .flatMap(this::prepareBackgroundTest)
             .timeout(TOTAL_TIMEOUT)
             .onErrorResume(IllegalArgumentException.class, error -> Mono.just(
                 new NavBackgroundTestResult(false, "", "", "为保护服务器，JSON 解析仅支持公网 http(s) 接口")))
@@ -228,8 +282,77 @@ public class NavLinkMetaService {
                 "接口请求失败，请检查网络、超时、TLS 证书、HTTP 状态或重定向目标"));
     }
 
+    Mono<NavBackgroundTestResult> prepareBackgroundTest(NavBackgroundTestResult result) {
+        if (!"json".equals(result.type()) && !result.success()) return Mono.just(result);
+        return reactor.core.publisher.Flux.fromIterable(result.candidates())
+            .flatMapSequential(candidate -> resolveTarget(URI.create(candidate.url()))
+                .map(ignored -> candidate).timeout(Duration.ofSeconds(2))
+                .onErrorResume(error -> Mono.empty()), 3)
+            .collectList().flatMap(candidates -> {
+                var path = result.jsonPath();
+                var image = result.url();
+                // Recommend the sole field; several fields require an explicit selection.
+                if ("json".equals(result.type()) && path.isEmpty() && candidates.size() == 1) {
+                    path = candidates.getFirst().path();
+                    image = candidates.getFirst().url();
+                }
+                var prepared = new NavBackgroundTestResult(!image.isEmpty(), result.type(), image,
+                    result.message(), candidates, result.jsonPreview(), path);
+                if (image.isEmpty()) {
+                    return Mono.just(prepared.withImage(false, "", candidates.isEmpty()
+                        ? "未发现可用的公网图片地址，可展开接口返回内容并手动填写字段路径"
+                        : "接口返回 JSON，请选择用作背景的图片地址字段"));
+                }
+                return publicBackgroundUrl(image).map(allowed -> prepared.withImage(true, allowed,
+                    "json".equals(result.type()) ? "JSON 图片地址解析成功" : "接口直接返回图片"))
+                    .defaultIfEmpty(prepared.withImage(false, "",
+                        "图片地址指向内网、保留地址、无法解析或不可访问的主机，已拒绝"));
+            });
+    }
+
+    static List<cn.litx.palettenav.dto.NavBackgroundCandidate> discoverBackgroundImages(JsonNode root, URI base) {
+        var found = new ArrayList<cn.litx.palettenav.dto.NavBackgroundCandidate>();
+        collectBackgroundImages(root, base, "", 0, new int[] {256}, found);
+        return List.copyOf(found);
+    }
+
+    private static void collectBackgroundImages(JsonNode node, URI base, String path, int depth,
+        int[] remaining, List<cn.litx.palettenav.dto.NavBackgroundCandidate> found) {
+        if (node == null || depth > 8 || path.length() > 256 || remaining[0]-- <= 0 || found.size() >= 12) return;
+        if (node.isString()) {
+            var field = path.isEmpty() ? "$" : path;
+            // Use the exact same path syntax and URL validation as the saved configuration.
+            var value = node.asString().trim();
+            if (NavUrlValidator.isSafeImageUrl(value)) {
+                var resolved = base.resolve(value).toString();
+                if (NavUrlValidator.isSafeHttpUrl(resolved)) {
+                    found.add(new cn.litx.palettenav.dto.NavBackgroundCandidate(field, resolved));
+                }
+            }
+        } else if (node.isArray()) {
+            for (var i = 0; i < node.size() && remaining[0] > 0 && found.size() < 12; i++) {
+                collectBackgroundImages(node.get(i), base, path + "[" + i + "]", depth + 1, remaining, found);
+            }
+        } else if (node.isObject()) {
+            for (var property : node.properties()) {
+                if (remaining[0] <= 0 || found.size() >= 12) break;
+                if (!property.getKey().matches("[A-Za-z0-9_-]+")) continue;
+                collectBackgroundImages(property.getValue(), base,
+                    path.isEmpty() ? property.getKey() : path + "." + property.getKey(), depth + 1, remaining, found);
+            }
+        }
+    }
+
     /** Read JSON using the same DNS, redirect, size and timeout guards as metadata. */
     public Mono<String> fetchBackgroundImage(String url) {
+        return fetchBackgroundImage(url, "url");
+    }
+
+    public Mono<String> fetchBackgroundImage(String url, String jsonPath) {
+        return limitBackgroundRequest(() -> fetchBackgroundImageUncached(url, jsonPath));
+    }
+
+    private Mono<String> fetchBackgroundImageUncached(String url, String jsonPath) {
         if (!NavUrlValidator.isSafeHttpUrl(url)) {
             return Mono.empty();
         }
@@ -242,44 +365,38 @@ public class NavLinkMetaService {
                         return null;
                     }
                     return extractBackgroundImage(JsonMapper.shared().readTree(bytes),
-                        finalUri, 0);
+                        finalUri, jsonPath);
                 }))
+            .flatMap(this::publicBackgroundUrl)
             .timeout(TOTAL_TIMEOUT)
             .onErrorResume(error -> Mono.empty());
     }
 
-    static String extractBackgroundImage(JsonNode node, URI base, int depth) {
-        if (node == null || depth > 12) {
-            return null;
-        }
-        if (node.isString()) {
-            var value = node.asString().trim();
-            // Only explicit URLs and site-relative paths; never mistake status text for a path.
-            if (!NavUrlValidator.isSafeImageUrl(value)) {
-                return null;
-            }
-            var resolved = base.resolve(value).toString();
-            return NavUrlValidator.isSafeHttpUrl(resolved) ? resolved : null;
-        }
-        if (node.isObject()) {
-            // Prefer image fields over unrelated API links and metadata.
-            for (var key : List.of("url", "imgurl", "imgUrl", "imageUrl", "image_url",
-                "pic", "picurl", "picUrl", "image", "src", "download_url",
-                "data", "images", "urls", "result", "results", "list")) {
-                var found = extractBackgroundImage(node.get(key), base, depth + 1);
-                if (found != null) {
-                    return found;
-                }
-            }
-        } else if (node.isArray()) {
-            for (var item : node) {
-                var found = extractBackgroundImage(item, base, depth + 1);
-                if (found != null) {
-                    return found;
-                }
+    /** Dot fields and numeric array indices, e.g. data.images[0].url; $ selects root. */
+    static String extractBackgroundImage(JsonNode node, URI base, String configuredPath) {
+        if (configuredPath == null || configuredPath.isBlank()) return null;
+        var path = configuredPath.trim();
+        if (path.length() > 256) return null;
+        if (path.startsWith("$.")) path = path.substring(2);
+        if (path.startsWith("$[")) path = path.substring(1);
+        if (!"$".equals(path)) {
+            if (!path.matches("(?:[A-Za-z0-9_-]+(?:\\[\\d+\\])*|(?:\\[\\d+\\])+)(?:\\.[A-Za-z0-9_-]+(?:\\[\\d+\\])*)*")) return null;
+            var segments = path.replace("[", ".").replace("]", "").replaceFirst("^\\.", "").split("\\.");
+            for (var segment : segments) {
+                if (node == null) return null;
+                if (node.isArray()) {
+                    try { node = node.get(Integer.parseInt(segment)); }
+                    catch (NumberFormatException error) { return null; }
+                } else if (node.isObject()) {
+                    node = node.get(segment);
+                } else return null;
             }
         }
-        return null;
+        if (node == null || !node.isString()) return null;
+        var value = node.asString().trim();
+        if (!NavUrlValidator.isSafeImageUrl(value)) return null;
+        var resolved = base.resolve(value).toString();
+        return NavUrlValidator.isSafeHttpUrl(resolved) ? resolved : null;
     }
 
     private Mono<PageMeta> fetchPage(URI uri, List<InetAddress> addresses, int redirectsLeft) {

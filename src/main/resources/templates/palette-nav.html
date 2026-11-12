@@ -9,7 +9,52 @@
     <meta name="keywords" th:content="${seoKeywords}">
     <meta name="description"
           th:content="${!#strings.isEmpty(seoDescription) ? seoDescription : site.subtitle}">
-    <link rel="shortcut icon" th:href="@{${logoUrl}}">
+    <link id="pn-favicon" rel="shortcut icon" th:href="@{${logoUrl}}">
+    <script th:if="${roundedLogo}" th:inline="javascript">
+        (function () {
+            var original = /*[[@{${logoUrl}}]]*/ '';
+            var proxy = /*[[@{/nav/logo-source}]]*/ '';
+            var retried = false;
+            function load(url) {
+                var image = new Image();
+                image.crossOrigin = 'anonymous';
+                image.onload = function () {
+                    try {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = canvas.height = 64;
+                        var ctx = canvas.getContext('2d');
+                        var width = image.naturalWidth;
+                        var height = image.naturalHeight;
+                        if (!ctx || !width || !height) return;
+                        var scale = Math.min(64 / width, 64 / height);
+                        var w = width * scale;
+                        var h = height * scale;
+                        var x = (64 - w) / 2;
+                        var y = (64 - h) / 2;
+                        var r = Math.min(w, h) * 0.21875;
+                        ctx.beginPath();
+                        ctx.moveTo(x + r, y);
+                        ctx.arcTo(x + w, y, x + w, y + h, r);
+                        ctx.arcTo(x + w, y + h, x, y + h, r);
+                        ctx.arcTo(x, y + h, x, y, r);
+                        ctx.arcTo(x, y, x + w, y, r);
+                        ctx.closePath();
+                        ctx.clip();
+                        ctx.drawImage(image, x, y, w, h);
+                        var icon = document.getElementById('pn-favicon');
+                        icon.type = 'image/png';
+                        icon.href = canvas.toDataURL('image/png');
+                    } catch (ignored) { retry(); }
+                };
+                image.onerror = retry;
+                image.src = url;
+            }
+            function retry() {
+                if (!retried) { retried = true; load(proxy); }
+            }
+            load(original);
+        }());
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-touch-fullscreen" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -97,6 +142,7 @@
         <div class="top-bar-left">
             <a th:href="@{/}" class="brand-link" th:title="${!#strings.isEmpty(siteName) ? siteName : site.title}">
                 <img th:src="@{${logoUrl}}" class="brand-logo"
+                     th:classappend="${roundedLogo} ? 'is-rounded' : ''"
                      th:alt="${!#strings.isEmpty(siteName) ? siteName : site.title}">
                 <span class="brand-text"
                       th:text="${!#strings.isEmpty(brandText)
@@ -251,7 +297,7 @@
                 <button type="button" class="category-item" th:each="category : ${categories}"
                         th:attr="data-cat=${category.name}"
                         aria-pressed="false">
-                    <span class="category-nav-icon" th:if="${showCategoryIcons}"
+                    <span class="category-nav-icon" th:if="${showCategoryIcons and !#strings.isEmpty(category.iconHtml)}"
                           th:utext="${category.iconHtml}" aria-hidden="true"></span>
                     <span th:text="${category.displayName}"></span>
                 </button>
@@ -336,6 +382,15 @@
               th:utext="${copyright}"></span>
     </div>
 </footer>
+
+<div class="page-scroll-controls" role="group" aria-label="页面滚动">
+    <button type="button" data-scroll-edge="top" aria-label="回到顶部" title="回到顶部">
+        <span aria-hidden="true">▲</span>
+    </button>
+    <button type="button" data-scroll-edge="bottom" aria-label="直达底部" title="直达底部">
+        <span aria-hidden="true">▼</span>
+    </button>
+</div>
 
 <script th:src="@{/plugins/palette-nav/assets/nav/js/script.js(v=${pluginVersion})}" defer></script>
 </body>

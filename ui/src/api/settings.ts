@@ -78,11 +78,15 @@ export interface AppearanceSettings {
   showYiyan: boolean;
   showCategoryIcons: boolean;
   enableHoverPreview: boolean;
+  showLinkCoverField: boolean;
+  roundedLogo: boolean;
   previewLoadingImage: string;
   /** Merged background media: image or video, chosen by `backgroundType`. */
   backgroundUrl: string;
   backgroundType: MediaKind;
   randomImageApi: string;
+  randomImageJsonPath: string;
+  randomImageCacheSeconds: number;
   defaultBackgroundMedia: boolean;
 }
 
@@ -133,10 +137,14 @@ const DEFAULT_VALUES: NavSettingsValues = {
     showYiyan: true,
     showCategoryIcons: false,
     enableHoverPreview: false,
+    showLinkCoverField: false,
+    roundedLogo: false,
     previewLoadingImage: "",
     backgroundUrl: "",
     backgroundType: "image",
     randomImageApi: "",
+    randomImageJsonPath: "",
+    randomImageCacheSeconds: 60,
     defaultBackgroundMedia: false,
   },
   search: {
@@ -277,10 +285,16 @@ export function normalizeSettings(input: unknown): NavSettingsValues {
       ),
       showCategoryIcons: readBoolean(appearance.showCategoryIcons, false),
       enableHoverPreview: readBoolean(appearance.enableHoverPreview, false),
+      showLinkCoverField: readBoolean(appearance.showLinkCoverField, false),
+      roundedLogo: readBoolean(appearance.roundedLogo, false),
       previewLoadingImage: readString(appearance.previewLoadingImage, "").trim(),
       backgroundUrl,
       backgroundType: resolvedBackgroundType,
       randomImageApi: readString(appearance.randomImageApi, "").trim(),
+      randomImageJsonPath: readString(appearance.randomImageJsonPath, "").trim(),
+      randomImageCacheSeconds: Number.isFinite(Number(appearance.randomImageCacheSeconds))
+        && appearance.randomImageCacheSeconds != null && appearance.randomImageCacheSeconds !== ""
+        ? Math.max(1, Math.min(86400, Math.trunc(Number(appearance.randomImageCacheSeconds)))) : 60,
       defaultBackgroundMedia: readBoolean(appearance.defaultBackgroundMedia, false),
     },
     search: {

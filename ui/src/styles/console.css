@@ -758,6 +758,25 @@ body.pn-dragging * {
   grid-column: 1 / -1;
 }
 
+.pn-page .pn-settings-logo-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 20px;
+  min-width: 0;
+}
+
+.pn-page .pn-settings-logo-row > :first-child {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.pn-page .pn-settings-logo-row > :last-child {
+  flex: 0 1 220px;
+  margin-left: -28px;
+  margin-top: 28px;
+}
+
 .pn-page .pn-settings-filing-icon > .pn-form-block {
   margin-bottom: 10px;
 }
@@ -1159,5 +1178,81 @@ body.pn-dragging * {
 
 .pn-page .pn-background-api-feedback.is-success {
   color: #16a34a;
+}
+
+.pn-page .pn-background-field-select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  margin-top: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg);
+  color: var(--pn-text);
+}
+
+.pn-page .pn-background-manual {
+  margin-top: 12px;
+}
+
+.pn-page .pn-background-manual-toggle {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.pn-page .pn-background-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.pn-page .pn-background-cache {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--pn-text);
+  font-size: 14px;
+}
+
+.pn-page .pn-background-cache input {
+  box-sizing: border-box;
+  width: 112px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+  background: var(--pn-bg);
+  color: var(--pn-text);
+}
+
+.pn-page .pn-background-preview img {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  height: 240px;
+  margin-top: 12px;
+  object-fit: contain;
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
+}
+
+.pn-page .pn-background-response summary {
+  cursor: pointer;
+  color: var(--pn-text-muted);
+}
+
+.pn-page .pn-background-response pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--pn-bg-soft);
+  border: 1px solid var(--pn-border);
+  border-radius: var(--pn-radius);
 }
 

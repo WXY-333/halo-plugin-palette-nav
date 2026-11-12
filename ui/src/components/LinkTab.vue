@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { fetchNavSettings } from "@/api/settings";
 import { computed, getCurrentInstance, ref, watch } from "vue";
 import {
   Dialog,
@@ -296,6 +297,20 @@ const urlValue = ref("");
 const nameValue = ref("");
 const iconValue = ref("");
 const coverUrl = ref("");
+const showLinkCoverField = ref(false);
+let coverSettingRevision = 0;
+async function loadCoverFieldSetting() {
+  const revision = ++coverSettingRevision;
+  showLinkCoverField.value = false;
+  try {
+    const settings = await fetchNavSettings();
+    if (revision === coverSettingRevision) {
+      showLinkCoverField.value = settings.appearance.showLinkCoverField;
+    }
+  } catch (error) {
+    if (revision === coverSettingRevision) Toast.error(errorMessage(error));
+  }
+}
 const fetchingMeta = ref(false);
 /** Identifies the in-flight 获取 request so a late response cannot fill another form. */
 const metaRequestId = ref(0);
@@ -305,6 +320,11 @@ const formError = ref("");
 const instance = getCurrentInstance();
 
 function submitForm(formId: string) {
+  if (formId === LINK_FORM_ID && !isSafeLinkUrl(urlValue.value.trim())) {
+    formError.value = "请输入合法的网址（http/https 或以 / 开头的站内路径）";
+    Toast.warning(formError.value);
+    return;
+  }
   const formkit = (
     instance?.proxy as { $formkit?: { submit: (name: string) => void } } | null
   )?.$formkit;
@@ -330,6 +350,7 @@ function closeModal() {
 }
 
 function openCreate() {
+  void loadCoverFieldSetting();
   cancelMetaFetch();
   editing.value = null;
   initialCategory.value = defaultCategory();
@@ -342,6 +363,7 @@ function openCreate() {
 }
 
 function openEdit(link: NavLink) {
+  void loadCoverFieldSetting();
   cancelMetaFetch();
   editing.value = link;
   urlValue.value = link.spec.url ?? "";
@@ -421,20 +443,24 @@ async function save(payload: {
   const url = (payload.url ?? "").trim();
   if (!categoryName) {
     formError.value = "请选择分类";
+    Toast.warning(formError.value);
     return;
   }
   if (!displayName) {
     formError.value = "请输入链接名称";
+    Toast.warning(formError.value);
     return;
   }
   if (!isSafeLinkUrl(url)) {
     formError.value = "请输入合法的网址（http/https 或以 / 开头的站内路径）";
+    Toast.warning(formError.value);
     return;
   }
   formError.value = "";
   saving.value = true;
   if (coverUrl.value.trim() && !isSafeImageUrl(coverUrl.value.trim())) {
     formError.value = "主页封面请输入 http/https 或以 / 开头的图片地址";
+    Toast.warning(formError.value);
     saving.value = false;
     return;
   }
@@ -1131,7 +1157,7 @@ async function saveCopy(payload: { categoryName?: string }) {
     :width="640"
     @close="closeModal"
   >
-    <FormKit :id="LINK_FORM_ID" type="form" :actions="false" @submit="save">
+    <FormKit :id="LINK_FORM_ID" type="form" :actions="false" @submit="save" @submit-invalid="Toast.warning('请检查分类、网址和名称是否填写正确')">
       <FormKit
         name="categoryName"
         type="select"
@@ -1177,11 +1203,10 @@ async function saveCopy(payload: { categoryName?: string }) {
     <div class="pn-form-block">
       <span class="pn-form-label">图标</span>
       <IconPicker v-model="iconValue" />
-      <div class="pn-form-block">
+      <div v-if="showLinkCoverField" class="pn-form-block">
         <MediaPicker
           v-model="coverUrl"
-          label="主页封面（可选）"
-          empty-hint="留空也可以保存"
+          label="主页封面"
           help="上传网站首页截图、从 Halo 附件库选择或输入图片链接，用于前端鼠标悬停预览。"
         />
       </div>

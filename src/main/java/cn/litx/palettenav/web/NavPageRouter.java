@@ -12,6 +12,7 @@ import cn.litx.palettenav.service.NavIconRenderer;
 import cn.litx.palettenav.service.NavIconSpriteService;
 import cn.litx.palettenav.service.NavMediaType;
 import cn.litx.palettenav.service.NavLinkMetaService;
+import cn.litx.palettenav.service.NavBackgroundService;
 import cn.litx.palettenav.service.NavQueryService;
 import cn.litx.palettenav.service.NavStatsService;
 import cn.litx.palettenav.service.NavUrlValidator;
@@ -53,7 +54,8 @@ public class NavPageRouter {
     private final NavYiyanService yiyanService;
     private final NavVisitRecorder visitRecorder;
     private final PluginContext pluginContext;
-    private final NavLinkMetaService linkMetaService;
+    private final NavBackgroundService backgroundService;
+    private final cn.litx.palettenav.service.NavLogoService logoService;
 
     @Bean
     RouterFunction<ServerResponse> paletteNavPageRoute() {
@@ -61,7 +63,25 @@ public class NavPageRouter {
             .GET("/nav", this::render)
             .GET("/nav/", this::render)
             .GET("/nav/background", this::backgroundImage)
+            .GET("/nav/background-image", this::backgroundAsset)
+            .GET("/nav/logo-source", this::logoSource)
             .build();
+    }
+
+    private Mono<ServerResponse> logoSource(ServerRequest request) {
+        return settingsService.get().flatMap(settings -> {
+            if (!Boolean.TRUE.equals(settings.getAppearance().getRoundedLogo())) {
+                return ServerResponse.notFound().build();
+            }
+            return logoService.fetch(resolveLogo(settings.getGeneral().getLogoUrl()))
+                .flatMap(asset -> ServerResponse.ok()
+                    .header(HttpHeaders.CONTENT_TYPE, asset.mediaType())
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:")
+                    .cacheControl(CacheControl.noStore())
+                    .bodyValue(asset.bytes()))
+                .switchIfEmpty(ServerResponse.notFound().build());
+        });
     }
 
     private Mono<ServerResponse> backgroundImage(ServerRequest request) {
@@ -71,12 +91,29 @@ public class NavPageRouter {
                 ? NavConstants.DEFAULT_BACKGROUND_ASSET
                 : effectiveBackground(appearance.getBackgroundUrl());
             var contextPath = request.exchange().getRequest().getPath().contextPath().value();
-            return linkMetaService.fetchBackgroundImage(randomImageUrl(appearance.getRandomImageApi()))
+            return (appearance.getRandomImageApi().startsWith("/")
+                ? Mono.just(contextRelative(appearance.getRandomImageApi(), contextPath))
+                : appearance.getRandomImageApi().isBlank() ? Mono.<String>empty()
+                : Mono.just(contextPath + "/nav/background-image?_pn=" + System.currentTimeMillis()))
                 .defaultIfEmpty(contextRelative(fallback, contextPath))
                 .flatMap(url -> ServerResponse.ok().cacheControl(CacheControl.noStore())
                     .contentType(org.springframework.http.MediaType.TEXT_PLAIN)
                     .header("X-Content-Type-Options", "nosniff")
                     .bodyValue(url));
+        });
+    }
+
+    private Mono<ServerResponse> backgroundAsset(ServerRequest request) {
+        return settingsService.get().flatMap(settings -> {
+            var appearance = settings.getAppearance();
+            return backgroundService.image(appearance.getRandomImageApi(), appearance.getRandomImageJsonPath(),
+                appearance.getRandomImageCacheSeconds())
+                .flatMap(asset -> ServerResponse.ok().cacheControl(CacheControl.noStore())
+                    .header(HttpHeaders.CONTENT_TYPE, asset.mediaType())
+                    .header("X-Content-Type-Options", "nosniff")
+                    .header("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:")
+                    .bodyValue(asset.bytes()))
+                .switchIfEmpty(ServerResponse.notFound().build());
         });
     }
 
@@ -126,6 +163,7 @@ public class NavPageRouter {
                 model.put("showYiyan", appearance.getShowYiyan());
                 model.put("showCategoryIcons", appearance.getShowCategoryIcons());
                 model.put("enableHoverPreview", appearance.getEnableHoverPreview());
+                model.put("roundedLogo", appearance.getRoundedLogo());
                 model.put("previewLoadingImage",
                     NavUrlValidator.isSafeImageUrl(appearance.getPreviewLoadingImage())
                         ? contextRelative(appearance.getPreviewLoadingImage().trim(), contextPath)
@@ -134,15 +172,18 @@ public class NavPageRouter {
                     ? yiyanService.randomQuote() : "");
                 var mergedBackground = NavUrlValidator.trim(appearance.getBackgroundUrl());
                 var randomBackground = randomImageUrl(appearance.getRandomImageApi());
+                var jsonBackground = !randomBackground.isEmpty();
                 var videoBackground = randomBackground.isEmpty()
                     && NavMediaType.VIDEO.equals(appearance.getBackgroundType())
                     && NavUrlValidator.isSafeImageUrl(mergedBackground);
                 model.put("defaultBackgroundMedia", appearance.getDefaultBackgroundMedia());
-                model.put("randomBackgroundResolver", randomBackground.isEmpty() ? ""
+                model.put("randomBackgroundResolver", !jsonBackground ? ""
                     : contextPath + "/nav/background");
                 model.put("backgroundFallback", NavMediaType.VIDEO.equals(appearance.getBackgroundType())
                     ? NavConstants.DEFAULT_BACKGROUND_ASSET : effectiveBackground(mergedBackground));
-                model.put("backgroundUrl", !randomBackground.isEmpty() ? randomBackground : videoBackground
+                model.put("backgroundUrl", jsonBackground ? NavMediaType.VIDEO.equals(appearance.getBackgroundType())
+                    ? NavConstants.DEFAULT_BACKGROUND_ASSET : effectiveBackground(mergedBackground)
+                    : !randomBackground.isEmpty() ? randomBackground : videoBackground
                     ? NavConstants.DEFAULT_BACKGROUND_ASSET
                     : effectiveBackground(mergedBackground));
                 model.put("backgroundVideoUrl", videoBackground
