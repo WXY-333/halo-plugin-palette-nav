@@ -15,7 +15,7 @@ public class NavBackgroundService {
     private Mono<NavLinkMetaService.FetchedAsset> cachedImage;
 
     public synchronized Mono<String> resolve(String url, String jsonPath, int cacheSeconds) {
-        int ttl = Math.max(1, Math.min(86400, cacheSeconds));
+        int ttl = Math.max(0, Math.min(86400, cacheSeconds));
         var key = url + "\n" + jsonPath + "\n" + ttl;
         if (!key.equals(cacheKey)) {
             cacheKey = key;

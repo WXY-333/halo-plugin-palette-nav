@@ -306,8 +306,8 @@ watch(
 async function save() {
   clearBackgroundTestMessage();
   const cacheSeconds = Number(settings.value.appearance.randomImageCacheSeconds);
-  if (!Number.isInteger(cacheSeconds) || cacheSeconds < 1 || cacheSeconds > 86400) {
-    Toast.warning("API 缓存时长请填写 1–86400 之间的整数秒数");
+  if (String(settings.value.appearance.randomImageCacheSeconds).trim() === "" || !Number.isInteger(cacheSeconds) || cacheSeconds < 0 || cacheSeconds > 86400) {
+    Toast.warning("API 缓存时长请填写 0–86400 之间的整数秒数");
     return;
   }
   settings.value.appearance.randomImageCacheSeconds = cacheSeconds;
@@ -653,11 +653,11 @@ function submit() {
                 <label class="pn-background-cache" for="pn-background-cache-seconds">
                   <span>API 缓存时长（秒）</span>
                   <input id="pn-background-cache-seconds" v-model.number="settings.appearance.randomImageCacheSeconds"
-                    type="number" min="1" max="86400" step="1" required
-                    title="默认 60 秒，可填 1–86400 秒；适用于图片直返和 JSON 接口" />
+                    type="number" min="0" max="86400" step="1" required
+                    title="默认 60 秒，可填 0–86400 秒；0 表示每次刷新重新请求" />
                 </label>
                 </div>
-                <p class="formkit-help">缓存适用于公网随机图片 API，包括图片直返和 JSON 接口。默认 60 秒，可填 1–86400 秒；缓存期间共用同一张图片，时间越短，第三方接口请求越频繁。</p>
+                <p class="formkit-help">适用于图片直返和 JSON 随机图片 API，默认 60 秒，可填 0–86400 秒。0 表示每次刷新重新请求；缓存期间共用同一张图片。实际换图也取决于第三方接口，时间越短请求越频繁。</p>
                 <div v-if="manualBackgroundPath" class="pn-background-manual">
                   <FormKit
                     id="pn-random-image-json-path"
@@ -681,8 +681,8 @@ function submit() {
                 v-model="settings.appearance.defaultBackgroundMedia"
                 name="defaultBackgroundMedia"
                 type="switch"
-                label="首次访问默认显示图片背景"
-                help="开启后新访客直接显示背景，随机图片 API 优先；上方选择视频时显示视频。访客自行选择的背景模式仍会保留。"
+                label="首次访问默认显示背景"
+                help="开启后，没有保存过背景偏好的访客进入页面时自动显示背景。配置视频时优先播放视频；播放失败或 900 毫秒内未启动时保留主题色。图片模式优先加载随机图片 API，加载期间显示主题色；API 失败时依次使用已设置图片和默认图片。访客手动关闭背景后仍保持关闭。"
               />
             </div>
           </div>

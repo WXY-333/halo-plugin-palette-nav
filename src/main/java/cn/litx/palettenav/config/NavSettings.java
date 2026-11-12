@@ -147,7 +147,7 @@ public final class NavSettings {
             randomImageApi = trim(randomImageApi);
             randomImageJsonPath = trim(randomImageJsonPath);
             randomImageCacheSeconds = randomImageCacheSeconds == null ? 60
-                : Math.max(1, Math.min(86400, randomImageCacheSeconds));
+                : Math.max(0, Math.min(86400, randomImageCacheSeconds));
             defaultBackgroundMedia = Boolean.TRUE.equals(defaultBackgroundMedia);
 
             backgroundUrl = trim(backgroundUrl);

@@ -294,7 +294,7 @@ export function normalizeSettings(input: unknown): NavSettingsValues {
       randomImageJsonPath: readString(appearance.randomImageJsonPath, "").trim(),
       randomImageCacheSeconds: Number.isFinite(Number(appearance.randomImageCacheSeconds))
         && appearance.randomImageCacheSeconds != null && appearance.randomImageCacheSeconds !== ""
-        ? Math.max(1, Math.min(86400, Math.trunc(Number(appearance.randomImageCacheSeconds)))) : 60,
+        ? Math.max(0, Math.min(86400, Math.trunc(Number(appearance.randomImageCacheSeconds)))) : 60,
       defaultBackgroundMedia: readBoolean(appearance.defaultBackgroundMedia, false),
     },
     search: {

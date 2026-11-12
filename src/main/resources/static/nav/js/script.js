@@ -15,12 +15,14 @@
     var COLOR_KEY = 'palette_color';
     var NIGHT_KEY = 'palette_nightMode';
     var BG_KEY = 'palette_bgSetting';
+    var backgroundPreference;
     var SOU_KEY = 'theme_sou';
 
     var colors = ['purple', 'blue', 'green', 'pink', 'orange', 'teal'];
 
     // ============ 通用工具 ============
     function storageGet(key) {
+        if (key === BG_KEY && backgroundPreference !== undefined) return backgroundPreference;
         try {
             return window.localStorage.getItem(key);
         } catch (e) {
@@ -29,6 +31,7 @@
     }
 
     function storageSet(key, value) {
+        if (key === BG_KEY) backgroundPreference = value;
         try {
             window.localStorage.setItem(key, value);
         } catch (e) {
@@ -139,6 +142,9 @@
     var bgLayer = document.querySelector('.bg-layer');
     var resolvedBackground = '';
     var backgroundChecked = false;
+    var backgroundLoadRevision = 0;
+    var videoBackgroundCleanup = null;
+    var videoBackgroundState = 'idle';
 
     function applyResolvedBackground(url) {
         resolvedBackground = url;
@@ -169,26 +175,77 @@
     }
 
     function removeVideoBackground() {
+        if (videoBackgroundCleanup) {
+            videoBackgroundCleanup();
+            videoBackgroundCleanup = null;
+        }
         var videos = document.querySelectorAll('body > video');
         for (var i = 0; i < videos.length; i++) {
             if (videos[i].parentNode) {
+                videos[i].onerror = null;
+                videos[i].onplaying = null;
+                videos[i].pause();
+                videos[i].removeAttribute('src');
+                videos[i].load();
                 videos[i].parentNode.removeChild(videos[i]);
             }
         }
     }
 
-    function setImageBackground() {
-        var url = resolvedBackground || bodyData('backgroundUrl');
-        if (!bgLayer || !url) {
-            return false;
+    function backgroundImageLayers(urls) {
+        var layers = [];
+        for (var i = 0; i < urls.length; i++) {
+            if (urls[i]) layers.push('url("' + urls[i].replace(/"/g, '%22') + '")');
         }
+        return layers.length ? layers.join(', ') : 'none';
+    }
+
+    function setImageBackground() {
+        var hasRandomApi = bodyData('randomBackgroundEnabled') === 'true';
+        var url = hasRandomApi ? bodyData('backgroundUrl') : resolvedBackground || bodyData('backgroundUrl');
+        if (!bgLayer || !url) return false;
         storageSet(BG_KEY, 'image');
-        bgLayer.classList.add('image-bg');
-        // 模板 <head> 里已有 html[data-background="image"] 的样式规则，
-        // 这里同步属性，保证切换开关时首屏规则与运行时状态一致。
-        document.documentElement.setAttribute('data-background', 'image');
-        bgLayer.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+        var revision = ++backgroundLoadRevision;
         removeVideoBackground();
+        var fallback = bodyData('backgroundFallback');
+        var defaultImage = bodyData('backgroundDefault');
+        var fallbackImage = fallback && fallback !== url ? fallback : '';
+        bgLayer.classList.remove('image-bg');
+        bgLayer.style.backgroundImage = 'none';
+        document.documentElement.removeAttribute('data-background');
+        if (!hasRandomApi) {
+            bgLayer.classList.add('image-bg');
+            document.documentElement.setAttribute('data-background', 'image');
+            bgLayer.style.backgroundImage = backgroundImageLayers([url, defaultImage]);
+        }
+        var requestedImage = new Image();
+        requestedImage.onload = function () {
+            if (revision === backgroundLoadRevision) {
+                bgLayer.classList.add('image-bg');
+                document.documentElement.setAttribute('data-background', 'image');
+                bgLayer.style.backgroundImage = backgroundImageLayers([url]);
+            }
+        };
+        requestedImage.onerror = function () {
+            if (revision === backgroundLoadRevision) {
+                function showFallbackImage(imageUrl) {
+                    if (revision !== backgroundLoadRevision || !imageUrl) return;
+                    var probe = new Image();
+                    probe.onload = function () {
+                        if (revision !== backgroundLoadRevision) return;
+                        bgLayer.classList.add('image-bg');
+                        document.documentElement.setAttribute('data-background', 'image');
+                        bgLayer.style.backgroundImage = backgroundImageLayers([imageUrl, defaultImage]);
+                    };
+                    probe.onerror = function () {
+                        if (imageUrl !== defaultImage) showFallbackImage(defaultImage);
+                    };
+                    probe.src = imageUrl;
+                }
+                showFallbackImage(fallbackImage || defaultImage);
+            }
+        };
+        requestedImage.src = url;
         checkRandomBackground();
         return true;
     }
@@ -199,30 +256,143 @@
             return false;
         }
         storageSet(BG_KEY, 'video');
+        videoBackgroundState = 'waiting';
+        var revision = ++backgroundLoadRevision;
+        removeVideoBackground();
+        var video = document.createElement('video');
+        video.loop = true;
+        video.muted = true;
+        video.defaultMuted = true;
+        video.autoplay = true;
+        video.preload = 'auto';
+        video.playsInline = true;
+        video.setAttribute('autoplay', '');
+        video.setAttribute('preload', 'auto');
+        video.setAttribute('muted', '');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-3;pointer-events:none;';
+        var disposed = false;
+        var state = 'waiting';
+        var retried = false;
+        var playbackTimer = null;
+        var playbackAttempt = 0;
+
+        function active() {
+            return !disposed && revision === backgroundLoadRevision;
+        }
+
+        function clearPlaybackTimer() {
+            if (playbackTimer !== null) window.clearTimeout(playbackTimer);
+            playbackTimer = null;
+        }
+
+        function removeRetryListeners() {
+            document.removeEventListener('click', retryPlayback, true);
+            document.removeEventListener('touchend', retryPlayback, true);
+            document.removeEventListener('keydown', retryPlayback, true);
+        }
+
+        function showFallback(url) {
+            if (!active() || !bgLayer || !url || state === 'playing') return;
+            document.documentElement.setAttribute('data-background', 'image');
+            bgLayer.classList.add('image-bg');
+            bgLayer.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+        }
+
+        function playbackFailed(allowRetry) {
+            if (!active() || state === 'failed' || state === 'playing') return;
+            state = 'failed';
+            videoBackgroundState = 'failed';
+            clearPlaybackTimer();
+            video.onerror = null;
+            video.onplaying = null;
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+            // Video failure stays on the page theme; do not flash a late fallback image.
+            document.documentElement.removeAttribute('data-background');
+            if (bgLayer) {
+                bgLayer.classList.remove('image-bg');
+                bgLayer.style.backgroundImage = 'none';
+            }
+            if (allowRetry && !retried) {
+                document.addEventListener('click', retryPlayback, true);
+                document.addEventListener('touchend', retryPlayback, true);
+                document.addEventListener('keydown', retryPlayback, true);
+            }
+        }
+
+        function attemptPlayback() {
+            if (!active()) return;
+            clearPlaybackTimer();
+            state = 'waiting';
+            var attempt = ++playbackAttempt;
+            video.onerror = function () {
+                if (state === 'playing') state = 'waiting';
+                playbackFailed(false);
+            };
+            video.onplaying = function () {
+                if (!active() || state !== 'waiting') return;
+                state = 'playing';
+                videoBackgroundState = 'playing';
+                clearPlaybackTimer();
+                removeRetryListeners();
+                document.documentElement.removeAttribute('data-background');
+                if (bgLayer) {
+                    bgLayer.classList.remove('image-bg');
+                    bgLayer.style.backgroundImage = 'none';
+                }
+            };
+            // Give autoplay a brief chance to produce a playing event, then keep the theme color.
+            playbackTimer = window.setTimeout(function () { playbackFailed(true); }, 900);
+            video.src = src;
+            try {
+                var playResult = video.play();
+                if (playResult && typeof playResult.then === 'function') {
+                    playResult.then(null, function (error) {
+                        if (attempt !== playbackAttempt) return;
+                        playbackFailed(!error || error.name === 'NotAllowedError');
+                    });
+                }
+            } catch (error) {
+                playbackFailed(!error || error.name === 'NotAllowedError');
+            }
+        }
+
+        function retryPlayback(event) {
+            // The background toggle must only switch modes, never start a retry first.
+            var target = event && event.target;
+            while (target && target !== document) {
+                if (target.id === 'bgBtn') return;
+                target = target.parentNode;
+            }
+            removeRetryListeners();
+            if (!active() || retried || state !== 'failed') return;
+            retried = true;
+            attemptPlayback();
+        }
+
+        videoBackgroundCleanup = function () {
+            disposed = true;
+            if (revision === backgroundLoadRevision) videoBackgroundState = 'idle';
+            clearPlaybackTimer();
+            removeRetryListeners();
+        };
+        // Start on the selected theme color; only failed playback needs an image.
         document.documentElement.removeAttribute('data-background');
         if (bgLayer) {
             bgLayer.classList.remove('image-bg');
             bgLayer.style.backgroundImage = 'none';
         }
-        removeVideoBackground();
-
-        var video = document.createElement('video');
-        video.src = src;
-        video.loop = true;
-        video.muted = true;
-        video.autoplay = true;
-        video.playsInline = true;
-        video.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:-3;pointer-events:none;';
-        // 视频地址失效、跨域被拒或浏览器不支持编码时回退到无背景，
-        // 同时把偏好写回 none，否则每次刷新都会重试失败视频、切换按钮也看似无效
-        video.addEventListener('error', function () {
-            clearBackground();
-        });
-        document.body.appendChild(video);
+        if (!video.parentNode) document.body.appendChild(video);
+        attemptPlayback();
         return true;
     }
 
     function clearBackground() {
+        backgroundLoadRevision += 1;
+        videoBackgroundState = 'idle';
         storageSet(BG_KEY, 'none');
         document.documentElement.removeAttribute('data-background');
         if (bgLayer) {
@@ -249,15 +419,10 @@
             return;
         }
         if (saved === 'video') {
-            if (!setVideoBackground()) {
-                clearBackground();
-            }
+            if (!setVideoBackground()) setImageBackground();
         } else if (saved === 'image') {
-            // 配置了视频地址后图片背景不再参与切换，历史偏好清零
-            if (!hasVideoBackground() && setImageBackground()) {
-                return;
-            }
-            clearBackground();
+            if (hasVideoBackground()) setVideoBackground();
+            else setImageBackground();
         }
     }
 
@@ -266,7 +431,8 @@
         // 配置了视频地址：只切换 视频 / 无背景；未配置：只切换 图片 / 无背景
         if (hasVideoBackground()) {
             if (current === 'video') {
-                clearBackground();
+                if (videoBackgroundState === 'failed') setVideoBackground();
+                else clearBackground();
             } else {
                 setVideoBackground();
             }

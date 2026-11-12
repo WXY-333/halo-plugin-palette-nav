@@ -12,6 +12,17 @@ import reactor.test.StepVerifier;
 
 class NavBackgroundServiceTest {
     @Test
+    void zeroSecondsFetchesAgainForEachCompletedVisit() {
+        var meta = mock(NavLinkMetaService.class);
+        var asset = new NavLinkMetaService.FetchedAsset(new byte[] {1}, "png", "image/png");
+        when(meta.fetchBackgroundAsset(anyString())).thenReturn(Mono.just(asset));
+        var service = new NavBackgroundService(meta);
+        service.image("https://example.com/random", "", 0).block();
+        service.image("https://example.com/random", "", 0).block();
+        verify(meta, times(2)).fetchBackgroundAsset(anyString());
+    }
+
+    @Test
     void directImageBytesAreCachedForConfiguredDuration() {
         var meta = mock(NavLinkMetaService.class);
         var asset = new NavLinkMetaService.FetchedAsset(new byte[] {1, 2}, "png", "image/png");

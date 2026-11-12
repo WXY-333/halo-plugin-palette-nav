@@ -43,6 +43,7 @@ import run.halo.app.theme.router.ModelConst;
 public class NavPageRouter {
 
     private static final Pattern DIGITS = Pattern.compile("\\d+");
+    private final String assetRevision = UUID.randomUUID().toString();
 
     private final NavQueryService queryService;
     private final NavIconSpriteService iconSpriteService;
@@ -156,7 +157,7 @@ public class NavPageRouter {
                 model.put("gonganbeiIconHtml", iconRenderer.render(general.getGonganbeiIcon(), ""));
                 model.put("footerStats", tuple.getT1().stats());
                 model.put("contextPath", contextPath);
-                model.put("pluginVersion", pluginContext.getVersion());
+                model.put("pluginVersion", pluginContext.getVersion() + "-" + assetRevision);
                 model.put("defaultColor", appearance.getDefaultColor());
                 model.put("defaultNightMode", appearance.getDefaultNightMode());
                 model.put("showClock", appearance.getShowClock());
@@ -173,16 +174,18 @@ public class NavPageRouter {
                 var mergedBackground = NavUrlValidator.trim(appearance.getBackgroundUrl());
                 var randomBackground = randomImageUrl(appearance.getRandomImageApi());
                 var jsonBackground = !randomBackground.isEmpty();
-                var videoBackground = randomBackground.isEmpty()
-                    && NavMediaType.VIDEO.equals(appearance.getBackgroundType())
+                var videoBackground = NavMediaType.VIDEO.equals(appearance.getBackgroundType())
                     && NavUrlValidator.isSafeImageUrl(mergedBackground);
                 model.put("defaultBackgroundMedia", appearance.getDefaultBackgroundMedia());
-                model.put("randomBackgroundResolver", !jsonBackground ? ""
-                    : contextPath + "/nav/background");
+                model.put("randomBackgroundResolver", "");
+                model.put("randomBackgroundEnabled", jsonBackground);
+                model.put("backgroundDefault", NavConstants.DEFAULT_BACKGROUND_ASSET);
                 model.put("backgroundFallback", NavMediaType.VIDEO.equals(appearance.getBackgroundType())
-                    ? NavConstants.DEFAULT_BACKGROUND_ASSET : effectiveBackground(mergedBackground));
-                model.put("backgroundUrl", jsonBackground ? NavMediaType.VIDEO.equals(appearance.getBackgroundType())
-                    ? NavConstants.DEFAULT_BACKGROUND_ASSET : effectiveBackground(mergedBackground)
+                    ? NavConstants.DEFAULT_BACKGROUND_ASSET
+                    : NavUrlValidator.isSafeImageUrl(mergedBackground)
+                        ? effectiveBackground(mergedBackground) : "");
+                model.put("backgroundUrl", jsonBackground ? appearance.getRandomImageApi().startsWith("/")
+                    ? appearance.getRandomImageApi() : "/nav/background-image?_pn=" + System.currentTimeMillis()
                     : !randomBackground.isEmpty() ? randomBackground : videoBackground
                     ? NavConstants.DEFAULT_BACKGROUND_ASSET
                     : effectiveBackground(mergedBackground));

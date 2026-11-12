@@ -64,9 +64,13 @@
     <meta name="x5-page-mode" content="app">
     <script th:inline="javascript">
         (function () {
+            function stored(key) {
+                try { return window.localStorage.getItem(key); }
+                catch (ignored) { return null; }
+            }
             try {
                 var nightMode = /*[[${defaultNightMode}]]*/ 'auto';
-                var storedNight = localStorage.getItem('palette_nightMode');
+                var storedNight = stored('palette_nightMode');
                 var night = false;
                 if (storedNight === 'true') {
                     night = true;
@@ -86,7 +90,7 @@
                     document.documentElement.classList.add('night-mode');
                 }
 
-                var color = localStorage.getItem('palette_color');
+                var color = stored('palette_color');
                 if (color && /^[a-z][a-z0-9_-]*$/i.test(color)) {
                     document.documentElement.setAttribute('data-theme', color);
                 }
@@ -95,15 +99,20 @@
                 // 若等到那时再加载图片，用户会先看到无背景的主题渐变再淡入背景图。
                 var bgUrl = /*[[@{${backgroundUrl}}]]*/ '';
                 var bgVideoUrl = /*[[${backgroundVideoUrl}]]*/ '';
-                if (bgUrl) {
+                var useVideo = !!bgVideoUrl;
+                var fallbackUrl = /*[[@{${backgroundFallback}}]]*/ '';
+                var randomBackground = /*[[${randomBackgroundEnabled}]]*/ false;
+                if (bgUrl && !useVideo && !randomBackground) {
                     document.documentElement.style.setProperty('--pn-bg-image',
-                        'url("' + bgUrl.replace(/"/g, '%22') + '")');
+                        'url("' + bgUrl.replace(/"/g, '%22') + '"), url("'
+                        + fallbackUrl.replace(/"/g, '%22') + '")');
                 }
-                var bgSetting = localStorage.getItem('palette_bgSetting');
+                var bgSetting = stored('palette_bgSetting');
                 if (bgSetting === null && /*[[${defaultBackgroundMedia}]]*/ false) {
-                    bgSetting = 'image';
+                    bgSetting = useVideo ? 'video' : 'image';
                 }
-                if (bgSetting === 'image' && bgUrl && !bgVideoUrl) {
+                if (bgSetting === 'video' && !useVideo) bgSetting = 'image';
+                if (bgSetting === 'image' && bgUrl && !useVideo && !randomBackground) {
                     document.documentElement.setAttribute('data-background', 'image');
                 }
             } catch (ignored) {
@@ -127,7 +136,9 @@
               data-night-mode=${defaultNightMode},
               data-background-url=@{${backgroundUrl}},
               data-background-resolver=${randomBackgroundResolver},
+              data-random-background-enabled=${randomBackgroundEnabled},
               data-background-fallback=@{${backgroundFallback}},
+              data-background-default=@{${backgroundDefault}},
               data-background-video-url=${backgroundVideoUrl},
               data-default-background-media=${defaultBackgroundMedia},
               data-hover-preview=${enableHoverPreview},

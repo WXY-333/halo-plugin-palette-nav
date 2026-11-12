@@ -13,6 +13,24 @@ import org.junit.jupiter.api.Test;
 
 class NavLinkMetaServiceTest {
 
+    @Test
+    void wallpaperLimitAllowsImagesLargerThanIconLimit() throws Exception {
+        var method = NavLinkMetaService.class.getDeclaredMethod("readChunked",
+            java.io.InputStream.class, long.class, int.class);
+        method.setAccessible(true);
+        var image = new byte[768 * 1024];
+        var wire = new java.io.ByteArrayOutputStream();
+        wire.write((Integer.toHexString(image.length) + "\r\n").getBytes(StandardCharsets.US_ASCII));
+        wire.write(image);
+        wire.write("\r\n0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+        var result = (byte[]) method.invoke(null, new java.io.ByteArrayInputStream(wire.toByteArray()),
+            Long.MAX_VALUE, 10 * 1024 * 1024);
+        assertEquals(image.length, result.length);
+        var capped = (byte[]) method.invoke(null, new java.io.ByteArrayInputStream(wire.toByteArray()),
+            Long.MAX_VALUE, 512 * 1024);
+        assertEquals(512 * 1024, capped.length);
+    }
+
     private static final URI PAGE = URI.create("https://www.example.com/blog/post?id=1");
 
     @Test

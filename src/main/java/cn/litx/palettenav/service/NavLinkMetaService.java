@@ -58,6 +58,7 @@ public class NavLinkMetaService {
 
     private static final int MAX_REDIRECTS = 3;
     private static final int MAX_BYTES = 512 * 1024;
+    private static final int MAX_BACKGROUND_BYTES = 10 * 1024 * 1024;
     private static final int MAX_HEADER_BYTES = 16 * 1024;
     private static final int MAX_NAME_CODE_POINTS = 60;
     private static final int CONNECT_TIMEOUT_MS = 4000;
@@ -216,7 +217,16 @@ public class NavLinkMetaService {
     private final java.util.concurrent.Semaphore backgroundSlots = new java.util.concurrent.Semaphore(2);
 
     public Mono<FetchedAsset> fetchBackgroundAsset(String url) {
-        return limitBackgroundRequest(() -> fetchLogoAsset(url));
+        if (!NavUrlValidator.isSafeHttpUrl(url)) return Mono.empty();
+        var uri = URI.create(url);
+        return limitBackgroundRequest(() -> resolveTarget(uri)
+            .flatMap(addresses -> fetch(uri, addresses, MAX_REDIRECTS, ICON_ACCEPT,
+                "Background asset", (ignored, response) -> {
+                    var bytes = decode(response, MAX_BACKGROUND_BYTES);
+                    return bytes.length == 0 || bytes.length >= MAX_BACKGROUND_BYTES
+                        ? null : describeAsset(bytes);
+                }))
+            .timeout(TOTAL_TIMEOUT).onErrorResume(error -> Mono.empty()));
     }
 
     private <T> Mono<T> limitBackgroundRequest(java.util.function.Supplier<Mono<T>> request) {
@@ -433,7 +443,8 @@ public class NavLinkMetaService {
      */
     private <T> Mono<T> fetch(URI uri, List<InetAddress> addresses, int redirectsLeft,
         String accept, String label, ResponseDecoder<T> decoder) {
-        return Mono.fromCallable(() -> request(uri, addresses, accept))
+        return Mono.fromCallable(() -> request(uri, addresses, accept,
+                "Background asset".equals(label) ? MAX_BACKGROUND_BYTES : MAX_BYTES))
             .subscribeOn(Schedulers.boundedElastic())
             .flatMap(response -> {
                 if (isRedirect(response.status())) {
@@ -496,6 +507,11 @@ public class NavLinkMetaService {
 
     private RawResponse request(URI uri, List<InetAddress> addresses, String accept)
         throws IOException {
+        return request(uri, addresses, accept, MAX_BYTES);
+    }
+
+    private RawResponse request(URI uri, List<InetAddress> addresses, String accept, int maxBytes)
+        throws IOException {
         var deadline = System.nanoTime() + REQUEST_TIMEOUT.toNanos();
         var scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
         var https = "https".equals(scheme);
@@ -513,7 +529,7 @@ public class NavLinkMetaService {
             out.flush();
             var in = new BufferedInputStream(channel.getInputStream());
             var head = readHead(in, deadline);
-            var body = isRedirect(head.status()) ? new byte[0] : readBody(in, head, deadline);
+            var body = isRedirect(head.status()) ? new byte[0] : readBody(in, head, deadline, maxBytes);
             return new RawResponse(
                 head.status(),
                 head.header("location"),
@@ -656,29 +672,38 @@ public class NavLinkMetaService {
 
     private static byte[] readBody(InputStream in, ResponseHead head, long deadline)
         throws IOException {
+        return readBody(in, head, deadline, MAX_BYTES);
+    }
+
+    private static byte[] readBody(InputStream in, ResponseHead head, long deadline, int maxBytes)
+        throws IOException {
         if (head.status() < 200 || head.status() == 204 || head.status() == 304) {
             return new byte[0];
         }
         if (head.header("transfer-encoding").toLowerCase(Locale.ROOT).contains("chunked")) {
-            return readChunked(in, deadline);
+            return readChunked(in, deadline, maxBytes);
         }
         var lengthValue = head.header("content-length");
         if (!lengthValue.isBlank()) {
             try {
                 var length = Long.parseLong(lengthValue.trim());
                 if (length >= 0) {
-                    return readCapped(in, (int) Math.min(length, MAX_BYTES), deadline);
+                    return readCapped(in, (int) Math.min(length, maxBytes), deadline);
                 }
             } catch (NumberFormatException ignored) {
                 // A malformed length falls through to reading until the connection ends.
             }
         }
-        return readCapped(in, MAX_BYTES, deadline);
+        return readCapped(in, maxBytes, deadline);
     }
 
     private static byte[] readChunked(InputStream in, long deadline) throws IOException {
+        return readChunked(in, deadline, MAX_BYTES);
+    }
+
+    private static byte[] readChunked(InputStream in, long deadline, int maxBytes) throws IOException {
         var output = new ByteArrayOutputStream(8192);
-        while (output.size() < MAX_BYTES) {
+        while (output.size() < maxBytes) {
             var line = readLine(in, deadline);
             var extension = line.indexOf(';');
             var hex = (extension >= 0 ? line.substring(0, extension) : line).trim();
@@ -691,7 +716,7 @@ public class NavLinkMetaService {
             if (size <= 0) {
                 break;
             }
-            var remaining = (int) Math.min(size, MAX_BYTES - output.size());
+            var remaining = (int) Math.min(size, maxBytes - output.size());
             var chunk = new byte[remaining];
             readFully(in, chunk, deadline);
             output.write(chunk, 0, remaining);
@@ -763,6 +788,10 @@ public class NavLinkMetaService {
     }
 
     private static byte[] decode(RawResponse response) throws IOException {
+        return decode(response, MAX_BYTES);
+    }
+
+    private static byte[] decode(RawResponse response, int maxBytes) throws IOException {
         var encoding = response.contentEncoding().toLowerCase(Locale.ROOT);
         var body = response.body();
         if (body.length == 0 || encoding.isBlank() || encoding.contains("identity")) {
@@ -770,11 +799,11 @@ public class NavLinkMetaService {
         }
         if (encoding.contains("gzip")) {
             return readCapped(new GZIPInputStream(new ByteArrayInputStream(body)),
-                MAX_BYTES, Long.MAX_VALUE);
+                maxBytes, Long.MAX_VALUE);
         }
         if (encoding.contains("deflate")) {
             return readCapped(new InflaterInputStream(new ByteArrayInputStream(body)),
-                MAX_BYTES, Long.MAX_VALUE);
+                maxBytes, Long.MAX_VALUE);
         }
         return body;
     }
