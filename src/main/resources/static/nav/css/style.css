@@ -1351,7 +1351,7 @@ svg.icon {
     visibility: hidden;
     opacity: 0;
     transform: translateY(6px);
-    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    transition: opacity 0.18s ease, transform 0.18s ease;
 }
 .link-hover-preview.is-visible {
     visibility: visible;
@@ -1420,44 +1420,40 @@ svg.icon {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
-.link-hover-preview.is-description-only {
+.link-description-tooltip {
+    position: fixed;
+    z-index: 1001;
     width: min(350px, calc(100vw - 24px));
     height: 42px;
-    border-color: var(--accent);
-    border-radius: 12px;
-    background: var(--dropdown-bg);
-}
-.link-hover-preview.is-description-only .link-preview-loading,
-.link-hover-preview.is-description-only .link-preview-spinner {
-    display: none !important;
-}
-.link-hover-preview.is-description-only .link-preview-description {
-    position: static;
-    width: 100%;
-    height: 42px;
-    max-height: none;
     overflow: hidden;
     padding: 0 12px;
     display: flex;
     align-items: center;
+    border: 1px solid var(--accent);
     border-radius: 12px;
-    background: transparent;
+    background: var(--dropdown-bg);
     color: var(--text-primary);
+    box-shadow: var(--dropdown-shadow);
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    white-space: nowrap;
+}
+.link-description-tooltip.is-visible {
+    visibility: visible;
+    opacity: 1;
+}
+.link-description-tooltip > span {
+    flex: 0 0 auto;
     font-size: 16px;
     font-weight: 500;
-    white-space: nowrap;
-    overflow-wrap: normal;
 }
-.link-hover-preview.is-description-only .link-preview-description.is-marquee {
-    display: block;
-    line-height: 42px;
-    width: max-content;
-    min-width: 100%;
+.link-description-tooltip > span.is-marquee {
     animation: link-description-marquee 9s linear infinite alternate;
 }
 @keyframes link-description-marquee {
     from { transform: translateX(0); }
-    to { transform: translateX(calc(-100% + 326px)); }
+    to { transform: translateX(calc(-1 * var(--description-overflow, 326px))); }
 }
 .link-hover-preview.is-error .link-preview-description,
 .link-hover-preview:not(.is-loaded) .link-preview-description {

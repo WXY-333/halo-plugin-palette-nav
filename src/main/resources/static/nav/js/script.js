@@ -1051,6 +1051,12 @@
         description.hidden = true;
         popup.appendChild(description);
         document.body.appendChild(popup);
+        var textPopup = document.createElement('div');
+        textPopup.className = 'link-description-tooltip';
+        textPopup.setAttribute('aria-hidden', 'true');
+        var textContent = document.createElement('span');
+        textPopup.appendChild(textContent);
+        document.body.appendChild(textPopup);
         var current = null;
         var pending = null;
         var delayTimer = null;
@@ -1059,9 +1065,6 @@
         var cover = null;
 
         function close() {
-            if (!current) {
-                return;
-            }
             sequence += 1;
             clearTimeout(delayTimer);
             clearTimeout(timeoutTimer);
@@ -1076,6 +1079,12 @@
             popup.classList.remove('is-description-only');
             popup.classList.remove('is-visible');
             popup.setAttribute('aria-hidden', 'true');
+            textPopup.classList.remove('is-visible');
+            textPopup.setAttribute('aria-hidden', 'true');
+            loading.hidden = true;
+            description.hidden = true;
+            popup.classList.remove('is-loaded');
+            popup.classList.remove('is-error');
         }
 
         function place(card) {
@@ -1108,24 +1117,34 @@
                 return;
             }
             if (!coverUrl) {
-                current = card;
-                description.textContent = descriptionText;
-                description.hidden = false;
-                description.classList.remove('is-marquee');
-                popup.classList.add('is-description-only');
-                popup.classList.remove('is-loaded');
-                popup.classList.remove('is-error');
-                loading.hidden = true;
-                popup.setAttribute('aria-hidden', 'false');
-                popup.classList.add('is-visible');
-                place(card);
+                var textSequence = sequence;
+                textContent.textContent = descriptionText;
+                textContent.classList.remove('is-marquee');
+                textContent.style.removeProperty('--description-overflow');
+                textPopup.classList.add('is-visible');
+                textPopup.setAttribute('aria-hidden', 'false');
+                var rect = card.getBoundingClientRect();
+                var textWidth = textPopup.offsetWidth;
+                var textHeight = textPopup.offsetHeight;
+                var textLeft = Math.max(12, Math.min(rect.left + rect.width / 2 - textWidth / 2,
+                    window.innerWidth - textWidth - 12));
+                var textTop = rect.top - textHeight - 12;
+                if (textTop < 12) textTop = rect.bottom + 12;
+                textTop = Math.max(12, Math.min(textTop, window.innerHeight - textHeight - 12));
+                textPopup.style.left = textLeft + 'px';
+                textPopup.style.top = textTop + 'px';
                 window.requestAnimationFrame(function () {
-                    if (current === card && description.scrollWidth > description.clientWidth) {
-                        description.classList.add('is-marquee');
+                    if (sequence === textSequence && textPopup.classList.contains('is-visible')
+                        && textContent.scrollWidth > textPopup.clientWidth - 24) {
+                        textContent.style.setProperty('--description-overflow',
+                            (textContent.scrollWidth - (textPopup.clientWidth - 24)) + 'px');
+                        textContent.classList.add('is-marquee');
                     }
                 });
                 return;
             }
+            textPopup.classList.remove('is-visible');
+            textPopup.setAttribute('aria-hidden', 'true');
             current = card;
             var token = sequence;
             delayTimer = setTimeout(function () {
